@@ -1,3 +1,4 @@
+import os
 import requests
 from celery import shared_task, Task
 from django.conf import settings
@@ -103,6 +104,32 @@ def execute_background_remediation_task(
     )
 
     secure_token = refresh_installation_access_token(installation_id)
+
+    if pull_request_number > 0 and not buggy_file_content:
+        gh_headers = {
+            "Authorization": f"Bearer {secure_token}",
+            "Accept": "application/vnd.github+json",
+        }
+        pr_files_url = f"https://api.github.com/repos/{repository_full_name}/pulls/{pull_request_number}/files"
+        files_resp = requests.get(pr_files_url, headers=gh_headers, timeout=30)
+        if files_resp.status_code == 200:
+            pr_files = files_resp.json()
+            TARGET_EXTENSIONS = {'.py', '.js', '.jsx', '.ts', '.tsx', '.go', '.rs'}
+            LANG_MAP = {
+                '.py': 'python', '.js': 'javascript', '.jsx': 'javascript',
+                '.ts': 'javascript', '.tsx': 'javascript',
+            }
+            for file_info in pr_files:
+                ext = os.path.splitext(file_info['filename'])[1]
+                if ext in TARGET_EXTENSIONS and file_info.get('status') != 'removed':
+                    raw_url = file_info['raw_url']
+                    content_resp = requests.get(raw_url, timeout=30)
+                    if content_resp.status_code == 200:
+                        buggy_file_content = content_resp.text
+                        target_file_path = file_info['filename']
+                        target_language = LANG_MAP.get(ext, 'python')
+                        print(f"[PR_FETCH] Extracted {target_file_path} ({target_language}, {len(buggy_file_content)} bytes)")
+                        break
 
     fastapi_endpoint = "http://fastapi-brain:8010/api/v1/verify-infrastructure"
 

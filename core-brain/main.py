@@ -176,7 +176,7 @@ async def process_autonomous_remediation(payload: IngestionPayload):
         status_manager.update_commit_status(
             commit_sha=payload.latest_commit_sha,
             state="pending",
-            target_url=f"https://yourdomain.com/logs/{payload.project_id}",
+            target_url=f"https://mardi-cattle-charbroil.ngrok-free.dev/logs/{payload.project_id}",
             description="🔍 AI analyzing the issue — fix comment incoming...",
         )
 
@@ -241,7 +241,7 @@ async def process_autonomous_remediation(payload: IngestionPayload):
                     status_manager.update_commit_status(
                         commit_sha=payload.latest_commit_sha,
                         state="success",
-                        target_url=f"https://yourdomain.com/logs/{payload.project_id}",
+                        target_url=f"https://mardi-cattle-charbroil.ngrok-free.dev/logs/{payload.project_id}",
                         description="✅ Fix posted as PR comment — check the conversation tab.",
                     )
 
@@ -267,7 +267,7 @@ async def process_autonomous_remediation(payload: IngestionPayload):
                     status_manager.update_commit_status(
                         commit_sha=payload.latest_commit_sha,
                         state="success",
-                        target_url=f"https://yourdomain.com/logs/{payload.project_id}",
+                        target_url=f"https://mardi-cattle-charbroil.ngrok-free.dev/logs/{payload.project_id}",
                         description="✅ Fix PR created — review and merge.",
                     )
 
@@ -297,7 +297,7 @@ async def process_autonomous_remediation(payload: IngestionPayload):
                 status_manager.update_commit_status(
                     commit_sha=payload.latest_commit_sha,
                     state="failure",
-                    target_url=f"https://yourdomain.com/logs/{payload.project_id}",
+                    target_url=f"https://mardi-cattle-charbroil.ngrok-free.dev/logs/{payload.project_id}",
                     description=f"❌ Sandbox tests failed (exit code {exit_code}) — comment posted on PR.",
                 )
 
@@ -336,7 +336,7 @@ _🤖 The AI sandbox encountered an error while processing this PR._
             status_manager.update_commit_status(
                 commit_sha=payload.latest_commit_sha,
                 state="error",
-                target_url=f"https://yourdomain.com/logs/{payload.project_id}",
+                target_url=f"https://mardi-cattle-charbroil.ngrok-free.dev/logs/{payload.project_id}",
                 description=f"⚠️ Sandbox error: {str(exc)[:120]}",
             )
         raise HTTPException(status_code=500, detail=str(exc))

@@ -41,7 +41,7 @@ services:
       - "3000:3000"
     environment:
       - PORT=3000
-      - GITHUB_WEBHOOK_SECRET=kanakuze@12345
+      - GITHUB_WEBHOOK_SECRET=Kanakuze@12345
       - CELERY_BROKER_URL=redis://redis-broker:6379/0
     depends_on:
       - redis-broker
@@ -60,9 +60,9 @@ services:
       - REDIS_URL=redis://redis-broker:6379/0
       - CELERY_BROKER_URL=redis://redis-broker:6379/0
       - CELERY_RESULT_BACKEND=redis://redis-broker:6379/0
-      - GITHUB_APP_IDENTIFIER=4035498
+      - GITHUB_APP_IDENTIFIER=4058468
       - GITHUB_APP_PRIVATE_KEY_PATH=/app/certs/github_app.pem
-      - GITHUB_WEBHOOK_SECRET=kanakuze@12345
+      - GITHUB_WEBHOOK_SECRET=Kanakuze@12345
       - DJANGO_SECRET_KEY=django-insecure-production-change-me
       - FERNET_KEY=Pohbz-5z449bmw8_Fv3vlsg1u2veYPiEPqSaUbcepSs=
     volumes:
@@ -83,8 +83,9 @@ services:
       - REDIS_URL=redis://redis-broker:6379/0
       - CELERY_BROKER_URL=redis://redis-broker:6379/0
       - CELERY_RESULT_BACKEND=redis://redis-broker:6379/0
-      - GITHUB_APP_IDENTIFIER=4035498
+      - GITHUB_APP_IDENTIFIER=4058468
       - GITHUB_APP_PRIVATE_KEY_PATH=/app/certs/github_app.pem
+      - GITHUB_WEBHOOK_SECRET=Kanakuze@12345
       - FERNET_KEY=Pohbz-5z449bmw8_Fv3vlsg1u2veYPiEPqSaUbcepSs=
       - DJANGO_SECRET_KEY=django-insecure-production-change-me
     volumes:
@@ -105,8 +106,9 @@ services:
       - REDIS_URL=redis://redis-broker:6379/0
       - CELERY_BROKER_URL=redis://redis-broker:6379/0
       - CELERY_RESULT_BACKEND=redis://redis-broker:6379/0
-      - GITHUB_APP_IDENTIFIER=4035498
+      - GITHUB_APP_IDENTIFIER=4058468
       - GITHUB_APP_PRIVATE_KEY_PATH=/app/certs/github_app.pem
+      - GITHUB_WEBHOOK_SECRET=Kanakuze@12345
       - FERNET_KEY=Pohbz-5z449bmw8_Fv3vlsg1u2veYPiEPqSaUbcepSs=
       - DJANGO_SECRET_KEY=django-insecure-production-change-me
     volumes:

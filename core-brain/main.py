@@ -24,7 +24,7 @@ def _build_pr_comment(reasoning: str, language: str, patched_code: str, target_f
 {reasoning}
 
 ### The fix — `{target_file}`
-```suggestion
+```{language}
 {patched_code}
 ```
 
@@ -228,14 +228,34 @@ async def process_autonomous_remediation(payload: IngestionPayload):
                 )
 
             if payload.pull_request_number > 0:
-                comment = _build_pr_comment(
-                    reasoning=ai_solution["reasoning"],
-                    language=payload.target_language,
-                    patched_code=ai_solution["patched_code"],
-                    target_file=payload.target_file_path or sandbox_filename,
-                    test_logs=execution_logs,
-                )
-                comment_result = handler.post_pr_comment(payload.pull_request_number, comment) if handler else "No token provided — skipping comment."
+                target_file = payload.target_file_path or sandbox_filename
+                if handler:
+                    pr_info = requests.get(
+                        f"https://api.github.com/repos/{payload.repository_full_name}/pulls/{payload.pull_request_number}",
+                        headers={"Authorization": f"Bearer {payload.installation_access_token}", "Accept": "application/vnd.github+json"},
+                        timeout=30,
+                    ).json()
+                    pr_head_branch = pr_info.get("head", {}).get("ref", "")
+                    commit_result = ""
+                    if pr_head_branch:
+                        commit_result = handler.commit_fix_to_pr_branch(
+                            pull_request_number=payload.pull_request_number,
+                            pr_head_branch=pr_head_branch,
+                            file_path=target_file,
+                            patched_code=ai_solution["patched_code"],
+                        )
+                    comment_body = _build_pr_comment(
+                        reasoning=ai_solution["reasoning"],
+                        language=payload.target_language,
+                        patched_code=ai_solution["patched_code"],
+                        target_file=target_file,
+                        test_logs=execution_logs,
+                    )
+                    if commit_result:
+                        comment_body += f"\n\n✨ A fix commit has been pushed to `{pr_head_branch}` — review and merge."
+                    comment_result = handler.post_pr_comment(payload.pull_request_number, comment_body)
+                else:
+                    comment_result = "No token provided — skipping."
 
                 if status_manager:
                     status_manager.update_commit_status(

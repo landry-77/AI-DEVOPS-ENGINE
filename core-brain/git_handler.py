@@ -23,6 +23,35 @@ class EnterpriseGitHandler:
         print(f"[COMMENT] {error_msg}")
         return error_msg
 
+    def commit_fix_to_pr_branch(self, pull_request_number: int, pr_head_branch: str, file_path: str, patched_code: str) -> str:
+        file_resp = requests.get(
+            f"{self.repo_url}/contents/{file_path}?ref={pr_head_branch}",
+            headers=self.headers,
+        )
+        file_sha = file_resp.json()["sha"] if file_resp.status_code == 200 else None
+
+        encoded = base64.b64encode(patched_code.encode("utf-8")).decode("utf-8")
+        payload = {
+            "message": "🤖 AI DevOps: applied auto-fix (validated in sandbox)",
+            "content": encoded,
+            "branch": pr_head_branch,
+        }
+        if file_sha:
+            payload["sha"] = file_sha
+
+        resp = requests.put(
+            f"{self.repo_url}/contents/{file_path}",
+            json=payload,
+            headers=self.headers,
+        )
+        if resp.status_code in (200, 201):
+            commit_sha = resp.json()["commit"]["sha"]
+            print(f"[COMMIT] Pushed fix commit {commit_sha[:7]} to {pr_head_branch}")
+            return commit_sha
+        err = f"Failed to commit fix to {pr_head_branch}: {resp.text}"
+        print(f"[COMMIT] {err}")
+        return ""
+
     def execute_autonomous_pull_request(
         self,
         base_branch: str,

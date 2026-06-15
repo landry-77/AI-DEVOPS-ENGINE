@@ -24,7 +24,7 @@ def _build_pr_comment(reasoning: str, language: str, patched_code: str, target_f
 {reasoning}
 
 ### The fix — `{target_file}`
-```{language}
+```suggestion
 {patched_code}
 ```
 

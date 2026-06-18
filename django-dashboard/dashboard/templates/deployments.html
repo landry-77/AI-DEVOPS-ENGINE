@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Deployments — AI DevOps{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-theme-primary">Deployments</h1>
+            <p class="mt-1 text-sm text-theme-secondary">Trigger and monitor deployments across environments.</p>
+        </div>
+        <button onclick="document.getElementById('deploy-modal').classList.remove('hidden')" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors inline-flex items-center gap-2">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Deployment
+        </button>
+    </div>
+
+    <div class="rounded-xl border border-theme bg-theme-card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-theme text-sm">
+                <thead class="bg-theme-secondary">
+                    <tr>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Repository</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Commit</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Branch</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Strategy</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Status</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Date</th>
+                        <th class="px-5 py-3.5 text-right text-xs font-semibold text-theme-secondary uppercase tracking-wider">Logs</th>
+                    </tr>
+                </thead>
+                <tbody id="deploy-table-body" class="divide-y divide-theme">
+                    <tr><td colspan="7" class="px-5 py-12 text-center text-theme-secondary">Loading deployments...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="deploy-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-theme-card rounded-xl border border-theme shadow-2xl w-full max-w-lg mx-4 p-6">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-lg font-bold text-theme-primary">New Deployment</h2>
+            <button onclick="document.getElementById('deploy-modal').classList.add('hidden')" class="text-theme-secondary hover:text-theme-primary">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form id="deploy-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-theme-primary mb-1.5">Repository</label>
+                <input type="text" name="repository_full_name" required placeholder="owner/repo" class="w-full rounded-lg border border-theme bg-theme-primary px-3 py-2.5 text-sm text-theme-primary placeholder-theme-secondary focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-theme-primary mb-1.5">Commit SHA</label>
+                    <input type="text" name="commit_sha" required placeholder="abc1234" class="w-full rounded-lg border border-theme bg-theme-primary px-3 py-2.5 text-sm text-theme-primary placeholder-theme-secondary focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none font-mono">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-theme-primary mb-1.5">Branch</label>
+                    <input type="text" name="branch" value="main" class="w-full rounded-lg border border-theme bg-theme-primary px-3 py-2.5 text-sm text-theme-primary placeholder-theme-secondary focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-theme-primary mb-1.5">Strategy</label>
+                <select name="strategy" class="w-full rounded-lg border border-theme bg-theme-primary px-3 py-2.5 text-sm text-theme-primary focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none">
+                    <option value="docker">Docker</option>
+                    <option value="kubernetes">Kubernetes</option>
+                    <option value="serverless">Serverless</option>
+                    <option value="custom_script">Custom Script</option>
+                </select>
+            </div>
+            <button type="submit" class="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors">
+                Trigger Deployment
+            </button>
+        </form>
+        <div id="deploy-result" class="mt-4 hidden"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const tbody = document.getElementById('deploy-table-body');
+
+    async function fetchDeployments() {
+        try {
+            const res = await fetch('/api/v1/deployments/');
+            if (!res.ok) throw new Error('Network error');
+            const data = await res.json();
+            renderTable(data);
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-12 text-center text-theme-secondary">Failed: ${e.message}</td></tr>`;
+        }
+    }
+
+    function renderTable(deployments) {
+        if (deployments.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="px-5 py-12 text-center text-theme-secondary">No deployments yet.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = '';
+        deployments.forEach(d => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-theme-secondary/50 transition-colors';
+            const statusColors = {
+                'DEPLOYED': 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20',
+                'FAILED': 'bg-rose-500/10 text-rose-400 ring-rose-500/20',
+                'QUEUED': 'bg-slate-500/10 text-slate-400 ring-slate-500/20',
+                'BUILDING': 'bg-amber-500/10 text-amber-400 ring-amber-500/20 animate-pulse',
+                'DEPLOYING': 'bg-amber-500/10 text-amber-400 ring-amber-500/20 animate-pulse',
+                'ROLLED_BACK': 'bg-orange-500/10 text-orange-400 ring-orange-500/20',
+            };
+            const sc = statusColors[d.status] || 'bg-slate-500/10 text-slate-400 ring-slate-500/20';
+            tr.innerHTML = `
+                <td class="px-5 py-4 text-sm font-medium text-theme-primary">${d.repository_name}</td>
+                <td class="px-5 py-4 font-mono text-sm text-brand-400">${d.commit_sha.slice(0, 7)}</td>
+                <td class="px-5 py-4 text-sm text-theme-primary">${d.branch}</td>
+                <td class="px-5 py-4 text-sm text-theme-primary capitalize">${d.strategy}</td>
+                <td class="px-5 py-4"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${sc}">${d.status}</span></td>
+                <td class="px-5 py-4 text-sm text-theme-secondary font-mono whitespace-nowrap">${new Date(d.created_at).toLocaleString()}</td>
+                <td class="px-5 py-4 text-right">
+                    <button onclick="showLogs(${d.id})" class="text-xs font-medium text-brand-400 hover:text-brand-300 transition-colors">View Logs</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    async function showLogs(id) {
+        try {
+            const res = await fetch(`/api/v1/deployments/${id}/`);
+            if (!res.ok) throw new Error('Not found');
+            const d = await res.json();
+            alert(d.logs || 'No logs available.');
+        } catch (e) {
+            alert('Failed to load logs: ' + e.message);
+        }
+    }
+
+    document.getElementById('deploy-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const data = Object.fromEntries(new FormData(form));
+        const resultDiv = document.getElementById('deploy-result');
+        resultDiv.classList.remove('hidden');
+        resultDiv.innerHTML = '<p class="text-sm text-amber-400">Triggering deployment...</p>';
+        try {
+            const res = await fetch('/api/v1/deployments/trigger/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                body: JSON.stringify(data),
+            });
+            const json = await res.json();
+            if (res.ok) {
+                resultDiv.innerHTML = `<p class="text-sm text-emerald-400">${json.message || 'Deployment queued.'}</p>`;
+                document.getElementById('deploy-modal').classList.add('hidden');
+                fetchDeployments();
+            } else {
+                resultDiv.innerHTML = `<p class="text-sm text-rose-400">${json.error || 'Failed.'}</p>`;
+            }
+        } catch (e) {
+            resultDiv.innerHTML = `<p class="text-sm text-rose-400">${e.message}</p>`;
+        }
+    });
+
+    setInterval(fetchDeployments, 10000);
+    document.addEventListener('DOMContentLoaded', fetchDeployments);
+</script>
+{% endblock %}

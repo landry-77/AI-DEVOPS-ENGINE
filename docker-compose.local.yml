@@ -1,4 +1,3 @@
-version: '3.8'
 
 networks:
   ai-devops-local-network:
@@ -9,11 +8,11 @@ services:
     image: postgres:15-alpine
     container_name: local-postgres
     environment:
-      POSTGRES_DB: ai_devops_db_local
-      POSTGRES_USER: devops_local_admin
-      POSTGRES_PASSWORD: LocalDevelopmentPassword99
+      POSTGRES_DB: ${POSTGRES_DB:-ai_devops_db_local}
+      POSTGRES_USER: ${POSTGRES_USER:-devops_local_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-LocalDevelopmentPassword99}
     ports:
-      - "5433:5432"
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
     networks:
       - ai-devops-local-network
 
@@ -21,7 +20,7 @@ services:
     image: redis:7-alpine
     container_name: local-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     networks:
       - ai-devops-local-network
 
@@ -30,8 +29,8 @@ services:
     container_name: local-node-gateway
     environment:
       - PORT=3000
-      - GITHUB_WEBHOOK_SECRET=kanakuze@12345
-      - CELERY_BROKER_URL=redis://redis-broker:6379/0
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET?}
+      - CELERY_BROKER_URL=redis://redis-broker:6379/${REDIS_DB:-0}
     depends_on:
       - redis-broker
     networks:
@@ -42,24 +41,39 @@ services:
     container_name: local-django-dashboard
     command: python manage.py runserver 0.0.0.0:8000
     ports:
-      - "8000:8000"
+      - "${DJANGO_PORT:-8000}:8000"
     environment:
-      - DATABASE_URL=postgres://devops_local_admin:LocalDevelopmentPassword99@postgres-db:5432/ai_devops_db_local
-      - CELERY_BROKER_URL=redis://redis-broker:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis-broker:6379/0
-      - GITHUB_APP_IDENTIFIER=4035498
-      - GITHUB_APP_PRIVATE_KEY_PATH=/app/certs/github_app.pem
-      - STRIPE_SECRET_KEY=sk_test_mockkey
-      - STRIPE_WEBHOOK_SIGNING_SECRET=whsec_mockkey
-      - STRIPE_ENTERPRISE_PRICE_ID=price_mock
-      - STRIPE_SUCCESS_URL=http://localhost/dashboard/
-      - STRIPE_CANCEL_URL=http://localhost/
-      - SENDGRID_API_KEY=mock_sendgrid_key
-      - SLACK_ALERTS_WEBHOOK_URL=
-      - FERNET_KEY=Pohbz-5z449bmw8_Fv3vlsg1u2veYPiEPqSaUbcepSs=
+      - DATABASE_URL=postgres://${POSTGRES_USER:-devops_local_admin}:${POSTGRES_PASSWORD:-LocalDevelopmentPassword99}@postgres-db:5432/${POSTGRES_DB:-ai_devops_db_local}
+      - CELERY_BROKER_URL=redis://redis-broker:6379/${REDIS_DB:-0}
+      - CELERY_RESULT_BACKEND=redis://redis-broker:6379/${REDIS_DB:-0}
+      - GITHUB_APP_IDENTIFIER=${GITHUB_APP_IDENTIFIER?}
+      - GITHUB_APP_PRIVATE_KEY_PATH=${GITHUB_APP_PRIVATE_KEY_PATH:-/app/certs/github_app.pem}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET?}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY?}
+      - FERNET_KEY=${FERNET_KEY?}
+      - DEBUG=${DJANGO_DEBUG:-True}
+      - AUDIT_RETENTION_DAYS=${AUDIT_RETENTION_DAYS:-30}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
+      - PAYMENT_GATEWAY=${PAYMENT_GATEWAY:-stripe}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_mockkey}
+      - STRIPE_WEBHOOK_SIGNING_SECRET=${STRIPE_WEBHOOK_SIGNING_SECRET:-whsec_mockkey}
+      - STRIPE_ENTERPRISE_PRICE_ID=${STRIPE_ENTERPRISE_PRICE_ID:-price_mock}
+      - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL:-http://localhost/dashboard/}
+      - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL:-http://localhost/}
+      - PAYMENT_MANUAL_REDIRECT_URL=${PAYMENT_MANUAL_REDIRECT_URL:-/dashboard/}
+      - EMAIL_BACKEND=${EMAIL_BACKEND:-console}
+      - EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS:-billing@yourstartupdomain.com}
+      - EMAIL_FROM_NAME=${EMAIL_FROM_NAME:-AI DevOps Billing}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY:-mock_sendgrid_key}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST:-smtp.gmail.com}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-587}
+      - EMAIL_SMTP_TLS=${EMAIL_SMTP_TLS:-true}
+      - EMAIL_SMTP_USER=${EMAIL_SMTP_USER:-}
+      - EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD:-}
+      - SLACK_ALERTS_WEBHOOK_URL=${SLACK_ALERTS_WEBHOOK_URL:-}
     volumes:
-      - ./django-dashboard:/app
-      - ./certs:/app/certs:ro
+      - ${DJANGO_CODE_MOUNT:-./django-dashboard}:/app
+      - ${CERTS_PATH:-./certs}:/app/certs:ro
     depends_on:
       - postgres-db
       - redis-broker
@@ -69,19 +83,27 @@ services:
   celery-worker:
     build: ./django-dashboard
     container_name: local-celery-worker
-    command: celery -A config worker --loglevel=info --concurrency=1
+    command: celery -A config worker --loglevel=${CELERY_LOG_LEVEL:-info} --concurrency=${CELERY_CONCURRENCY:-1}
     environment:
-      - DATABASE_URL=postgres://devops_local_admin:LocalDevelopmentPassword99@postgres-db:5432/ai_devops_db_local
-      - CELERY_BROKER_URL=redis://redis-broker:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis-broker:6379/0
-      - GITHUB_APP_IDENTIFIER=4035498
-      - GITHUB_APP_PRIVATE_KEY_PATH=/app/certs/github_app.pem
-      - SLACK_ALERTS_WEBHOOK_URL=
-      - SENDGRID_API_KEY=mock_sendgrid_key
-      - FERNET_KEY=Pohbz-5z449bmw8_Fv3vlsg1u2veYPiEPqSaUbcepSs=
+      - DATABASE_URL=postgres://${POSTGRES_USER:-devops_local_admin}:${POSTGRES_PASSWORD:-LocalDevelopmentPassword99}@postgres-db:5432/${POSTGRES_DB:-ai_devops_db_local}
+      - CELERY_BROKER_URL=redis://redis-broker:6379/${REDIS_DB:-0}
+      - CELERY_RESULT_BACKEND=redis://redis-broker:6379/${REDIS_DB:-0}
+      - GITHUB_APP_IDENTIFIER=${GITHUB_APP_IDENTIFIER?}
+      - GITHUB_APP_PRIVATE_KEY_PATH=${GITHUB_APP_PRIVATE_KEY_PATH:-/app/certs/github_app.pem}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET?}
+      - FERNET_KEY=${FERNET_KEY?}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY?}
+      - AUDIT_RETENTION_DAYS=${AUDIT_RETENTION_DAYS:-30}
+      - PAYMENT_GATEWAY=${PAYMENT_GATEWAY:-stripe}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SIGNING_SECRET=${STRIPE_WEBHOOK_SIGNING_SECRET:-}
+      - STRIPE_ENTERPRISE_PRICE_ID=${STRIPE_ENTERPRISE_PRICE_ID:-price_placeholder}
+      - EMAIL_BACKEND=${EMAIL_BACKEND:-console}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY:-}
+      - SLACK_ALERTS_WEBHOOK_URL=${SLACK_ALERTS_WEBHOOK_URL:-}
     volumes:
-      - ./django-dashboard:/app
-      - ./certs:/app/certs:ro
+      - ${DJANGO_CODE_MOUNT:-./django-dashboard}:/app
+      - ${CERTS_PATH:-./certs}:/app/certs:ro
     depends_on:
       - redis-broker
       - postgres-db
@@ -91,11 +113,24 @@ services:
   fastapi-brain:
     build: ./core-brain
     container_name: local-fastapi-brain
+    ports:
+      - "${FASTAPI_PORT:-8010}:8010"
+    depends_on:
+      - redis-broker
     environment:
-      - LITELLM_MODEL=openrouter/qwen/qwen-2.5-coder-32b-instruct
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENROUTER_API_KEY?}
+      - OPENAI_MODEL=${OPENROUTER_MODEL:-gpt-4o-mini}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY?}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-openrouter/qwen/qwen-2.5-coder-32b-instruct}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - HOST=0.0.0.0
+      - PORT=8010
+      - DATA_COLLECTION=${DATA_COLLECTION:-deny}
+      - SLACK_ANALYSIS_WEBHOOK_URL=${SLACK_ANALYSIS_WEBHOOK_URL:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./core-brain/.env:/app/.env
+      - ${CERTS_PATH:-./certs}:/app/certs:ro
     networks:
       - ai-devops-local-network
 
@@ -103,9 +138,9 @@ services:
     image: caddy:2-alpine
     container_name: local-caddy-proxy
     ports:
-      - "80:80"
+      - "${CADDY_HTTP_PORT:-80}:80"
     volumes:
-      - ./Caddyfile.local:/etc/caddy/Caddyfile
+      - ${CADDYFILE_PATH:-./Caddyfile.local}:/etc/caddy/Caddyfile
     depends_on:
       - node-ingestion
       - django-dashboard

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Literal
 
 from ai_engine import generate_autonomous_patch, configure as configure_ai
-from config import HOST, PORT, LITELLM_MODEL, OLLAMA_API_BASE, OPENROUTER_API_KEY
+from config import HOST, PORT, OPENROUTER_MODEL, OPENROUTER_BASE_URL, OPENROUTER_API_KEY, SLACK_ANALYSIS_WEBHOOK_URL
 from git_handler import EnterpriseGitHandler
 from scrubber import sanitize_source_code
 from github_status import GitHubStatusCheckManager
@@ -35,7 +35,7 @@ def _build_pr_comment(reasoning: str, language: str, patched_code: str, target_f
 
 ---
 
-_🤖 AI-generated fix validated in isolated sandbox container. Review the suggested change above and commit if it looks good._
+_🤖 AI-generated fix validated in isolated sandbox container. Check the **Files changed** tab for the commit suggestion._
 """
 
 
@@ -80,16 +80,59 @@ def record_billing_consumption(project_id: str, org_name: str):
     except requests.exceptions.RequestException as e:
         print(f"[Meter] Failed to sync usage event: {e}")
 
+def send_slack_analysis(
+    repository: str,
+    pr_number: int,
+    target_file: str,
+    status: str,
+    reasoning: str,
+    execution_logs: str = "",
+):
+    if not SLACK_ANALYSIS_WEBHOOK_URL:
+        return
+    emoji = {"success": "✅", "failure": "❌", "error": "⚠️"}.get(status, "🤖")
+    summary = reasoning[:200] if reasoning else "No reasoning provided."
+    payload = {
+        "text": f"{emoji} AI Analysis Complete — {repository}",
+        "attachments": [
+            {
+                "color": {"success": "#36a64f", "failure": "#f87171", "error": "#f59e0b"}.get(status, "#808080"),
+                "title": f"PR #{pr_number} — {target_file}",
+                "fields": [
+                    {"title": "Repository", "value": repository, "short": True},
+                    {"title": "Pull Request", "value": f"#{pr_number}", "short": True},
+                    {"title": "File", "value": f"`{target_file}`", "short": True},
+                    {"title": "Status", "value": status.upper(), "short": True},
+                    {"title": "AI Summary", "value": f"```{summary}```", "short": False},
+                ],
+                "footer": "AI DevOps Analysis Pipeline",
+            }
+        ],
+    }
+    if execution_logs:
+        payload["attachments"][0]["fields"].append(
+            {"title": "Test Output (last 300 chars)", "value": f"```{execution_logs[-300:]}```", "short": False}
+        )
+    try:
+        resp = requests.post(SLACK_ANALYSIS_WEBHOOK_URL, json=payload, timeout=10)
+        if resp.ok:
+            print(f"[Slack] Analysis notification sent to workspace")
+        else:
+            print(f"[Slack] Webhook responded {resp.status_code}: {resp.text[:200]}")
+    except Exception as e:
+        print(f"[Slack] Failed to send analysis notification: {e}")
+
+
 app = FastAPI(title="Enterprise Autonomous DevOps Pipeline")
 
 
 @app.on_event("startup")
 def startup():
     configure_ai(
-        model=LITELLM_MODEL,
-        api_base=OLLAMA_API_BASE,
+        model=OPENROUTER_MODEL,
+        api_base=OPENROUTER_BASE_URL,
         api_key=OPENROUTER_API_KEY,
-        extra={"data_collection": "deny"} if "openrouter" in LITELLM_MODEL else None,
+        extra={"data_collection": "deny"} if "openrouter" in OPENROUTER_MODEL else None,
     )
 
 try:
@@ -191,6 +234,7 @@ async def process_autonomous_remediation(payload: IngestionPayload):
             stderr=True,
             mem_limit="512m",
             nano_cpus=2000000000,
+            network_mode="none",
         )
 
         import tarfile, io
@@ -230,30 +274,31 @@ async def process_autonomous_remediation(payload: IngestionPayload):
             if payload.pull_request_number > 0:
                 target_file = payload.target_file_path or sandbox_filename
                 if handler:
+                    handler.post_pr_comment(
+                        payload.pull_request_number,
+                        _build_pr_comment(
+                            reasoning=ai_solution["reasoning"],
+                            language=payload.target_language,
+                            patched_code=ai_solution["patched_code"],
+                            target_file=target_file,
+                            test_logs=execution_logs,
+                        ),
+                    )
                     pr_info = requests.get(
                         f"https://api.github.com/repos/{payload.repository_full_name}/pulls/{payload.pull_request_number}",
-                        headers={"Authorization": f"Bearer {payload.installation_access_token}", "Accept": "application/vnd.github+json"},
-                        timeout=30,
+                        headers={"Authorization": f"token {payload.installation_access_token}", "Accept": "application/vnd.github+json"},
+                        timeout=15,
                     ).json()
-                    pr_head_branch = pr_info.get("head", {}).get("ref", "")
-                    commit_result = ""
-                    if pr_head_branch:
-                        commit_result = handler.commit_fix_to_pr_branch(
+                    pr_head = pr_info.get("head", {}).get("ref", "")
+
+                    if pr_head:
+                        handler.commit_fix_to_pr_branch(
                             pull_request_number=payload.pull_request_number,
-                            pr_head_branch=pr_head_branch,
+                            pr_head_branch=pr_head,
                             file_path=target_file,
                             patched_code=ai_solution["patched_code"],
                         )
-                    comment_body = _build_pr_comment(
-                        reasoning=ai_solution["reasoning"],
-                        language=payload.target_language,
-                        patched_code=ai_solution["patched_code"],
-                        target_file=target_file,
-                        test_logs=execution_logs,
-                    )
-                    if commit_result:
-                        comment_body += f"\n\n✨ A fix commit has been pushed to `{pr_head_branch}` — review and merge."
-                    comment_result = handler.post_pr_comment(payload.pull_request_number, comment_body)
+                    comment_result = "Fix committed to PR branch."
                 else:
                     comment_result = "No token provided — skipping."
 
@@ -262,13 +307,22 @@ async def process_autonomous_remediation(payload: IngestionPayload):
                         commit_sha=payload.latest_commit_sha,
                         state="success",
                         target_url=f"https://mardi-cattle-charbroil.ngrok-free.dev/logs/{payload.project_id}",
-                        description="✅ Fix posted as PR comment — check the conversation tab.",
+                        description="✅ Fix committed to PR branch — check the file tab.",
                     )
 
+                send_slack_analysis(
+                    repository=payload.repository_full_name,
+                    pr_number=payload.pull_request_number,
+                    target_file=target_file,
+                    status="success",
+                    reasoning=ai_solution["reasoning"],
+                    execution_logs=execution_logs,
+                )
                 return {
-                    "status": "AUTONOMOUS_FIX_COMMENTED",
-                    "message": "Fix posted as comment on the PR.",
+                    "status": "AUTONOMOUS_FIX_COMMITTED",
+                    "message": "Fix committed directly to PR branch.",
                     "reasoning": ai_solution["reasoning"],
+                    "patched_code": ai_solution["patched_code"],
                     "comment_result": comment_result,
                     "logs": execution_logs,
                 }
@@ -291,10 +345,19 @@ async def process_autonomous_remediation(payload: IngestionPayload):
                         description="✅ Fix PR created — review and merge.",
                     )
 
+                send_slack_analysis(
+                    repository=payload.repository_full_name,
+                    pr_number=payload.pull_request_number,
+                    target_file=payload.target_file_path or config["app_file"],
+                    status="success",
+                    reasoning=ai_solution["reasoning"],
+                    execution_logs=execution_logs,
+                )
                 return {
                     "status": "AUTONOMOUS_PR_TRIGGERED",
                     "message": "Bug fixed and verified successfully.",
                     "reasoning": ai_solution["reasoning"],
+                    "patched_code": ai_solution["patched_code"],
                     "pr_result": pr_result,
                     "logs": execution_logs,
                 }
@@ -321,10 +384,19 @@ async def process_autonomous_remediation(payload: IngestionPayload):
                     description=f"❌ Sandbox tests failed (exit code {exit_code}) — comment posted on PR.",
                 )
 
+            send_slack_analysis(
+                repository=payload.repository_full_name,
+                pr_number=payload.pull_request_number,
+                target_file=payload.target_file_path or sandbox_filename,
+                status="failure",
+                reasoning=ai_solution["reasoning"],
+                execution_logs=execution_logs,
+            )
             return {
                 "status": "SANDBOX_VALIDATION_FAILED",
                 "message": "AI generated a fix but it failed safety validation tests.",
                 "reasoning": ai_solution["reasoning"],
+                "patched_code": ai_solution["patched_code"],
                 "logs": execution_logs,
             }
 

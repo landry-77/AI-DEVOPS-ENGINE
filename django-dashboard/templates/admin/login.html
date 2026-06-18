@@ -1,0 +1,131 @@
+{% load i18n static %}<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% translate 'Log in' %} | AI DevOps Engine</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script>
+    tailwind.config = {
+        darkMode: 'class',
+        theme: {
+            extend: {
+                fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                colors: {
+                    brand: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a', 950: '#172554' },
+                    accent: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065' },
+                }
+            }
+        }
+    }
+</script>
+<style>
+    :root {
+        --bg-primary: #0f172a;
+        --bg-secondary: #1e293b;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --border-color: #334155;
+        --nav-bg: linear-gradient(135deg, #1e3a8a, #4c1d95);
+        --primary: #3b82f6;
+    }
+    [data-theme="light"] {
+        --bg-primary: #f8fafc;
+        --bg-secondary: #ffffff;
+        --text-primary: #0f172a;
+        --text-secondary: #64748b;
+        --border-color: #e2e8f0;
+        --nav-bg: linear-gradient(135deg, #2563eb, #7c3aed);
+        --primary: #2563eb;
+    }
+    * { transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); }
+    input { border-radius: 8px; border: 1px solid var(--border-color); padding: 10px 12px; font-family: 'Inter', system-ui, sans-serif; font-size: 14px; background: var(--bg-primary); color: var(--text-primary); width: 100%; outline: none; }
+    input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+    label { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 4px; display: block; }
+    .errornote { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; }
+    .errorlist { color: #f87171; font-size: 12px; list-style: none; padding: 0; margin: 4px 0; }
+</style>
+</head>
+<body class="h-full">
+<div class="min-h-screen flex items-center justify-center px-4">
+    <div class="w-full max-w-sm">
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center h-14 w-14 rounded-xl bg-gradient-to-br from-blue-700 to-purple-700 mb-4">
+                <svg class="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold" style="color:var(--text-primary)">AI DevOps Engine</h1>
+            <p class="text-sm mt-1" style="color:var(--text-secondary)">Sign in to the admin panel</p>
+        </div>
+
+        <div class="rounded-xl border p-6" style="background:var(--bg-secondary);border-color:var(--border-color);">
+            {% if form.errors and not form.non_field_errors %}
+            <p class="errornote">{% blocktranslate count counter=form.errors.items|length %}Please correct the error below.{% plural %}Please correct the errors below.{% endblocktranslate %}</p>
+            {% endif %}
+
+            {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}
+            <p class="errornote">{{ error }}</p>
+            {% endfor %}
+            {% endif %}
+
+            {% if user.is_authenticated %}
+            <p class="errornote">{% blocktranslate trimmed %}You are authenticated as {{ username }}, but are not authorized to access this page. Would you like to login to a different account?{% endblocktranslate %}</p>
+            {% endif %}
+
+            <form action="{{ app_path }}" method="post" id="login-form">{% csrf_token %}
+                <div class="space-y-4">
+                    <div>
+                        {{ form.username.errors }}
+                        <label for="id_username">{{ form.username.label }}</label>
+                        {{ form.username }}
+                    </div>
+                    <div>
+                        {{ form.password.errors }}
+                        <label for="id_password">{{ form.password.label }}</label>
+                        {{ form.password }}
+                        <input type="hidden" name="next" value="{{ next }}">
+                    </div>
+                </div>
+
+                {% url 'admin_password_reset' as password_reset_url %}
+                {% if password_reset_url %}
+                <div class="mt-3 text-sm">
+                    <a href="{{ password_reset_url }}" style="color:var(--primary)" class="hover:underline">{% translate 'Forgotten your password or username?' %}</a>
+                </div>
+                {% endif %}
+
+                <div class="mt-6">
+                    <button type="submit" class="w-full px-4 py-2.5 rounded-lg font-semibold text-white text-sm transition-all duration-150 hover:opacity-90" style="background:var(--nav-bg)">{% translate 'Log in' %}</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="text-center mt-6">
+            <button onclick="toggleTheme()" class="text-sm px-3 py-1.5 rounded-lg border transition-all duration-150 hover:opacity-80" style="color:var(--text-secondary);border-color:var(--border-color)">
+                Toggle theme
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const theme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+    })();
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+    }
+</script>
+</body>
+</html>

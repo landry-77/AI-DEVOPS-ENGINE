@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import GitHubIntegration, RunAuditLog, Deployment
+from .models import GitHubIntegration, RunAuditLog, Deployment, BillingRecord, BillingForecast, BillingAlert
 
 
 @admin.register(GitHubIntegration)
@@ -20,3 +20,24 @@ class DeploymentAdmin(admin.ModelAdmin):
     list_display = ('repository_name', 'commit_sha', 'status', 'strategy', 'created_at', 'deployed_at')
     list_filter = ('status', 'strategy')
     readonly_fields = ('created_at', 'deployed_at')
+
+
+@admin.register(BillingRecord)
+class BillingRecordAdmin(admin.ModelAdmin):
+    list_display = ('organization_name', 'provider', 'service', 'cost', 'recorded_at')
+    list_filter = ('provider', 'service')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(BillingForecast)
+class BillingForecastAdmin(admin.ModelAdmin):
+    list_display = ('organization_name', 'provider', 'forecast_month', 'predicted_cost', 'model_used')
+    list_filter = ('provider', 'model_used')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(BillingAlert)
+class BillingAlertAdmin(admin.ModelAdmin):
+    list_display = ('organization_name', 'provider', 'service', 'severity', 'current_cost', 'is_acknowledged', 'created_at')
+    list_filter = ('severity', 'is_acknowledged', 'provider')
+    readonly_fields = ('created_at',)

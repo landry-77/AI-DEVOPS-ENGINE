@@ -1,42 +1,36 @@
-<!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-950">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Autonomous DevOps Engine Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="h-full text-slate-100 font-sans">
-    <div class="min-h-full">
-        <nav class="border-b border-slate-800 bg-slate-900/50 backdrop-blur">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div class="flex h-16 items-center justify-between">
-                    <span class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-indigo-500 bg-clip-text text-transparent">
-                        AI Patch-Bot Engine
-                    </span>
-                    <span class="rounded-full bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-400 ring-1 ring-inset ring-cyan-400/20">
-                        Enterprise Operational Active Mode
-                    </span>
-                </div>
-            </div>
-        </nav>
-
-        <main class="py-10">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <header class="mb-8">
-                    <h1 class="text-3xl font-bold tracking-tight text-white">Execution Logs</h1>
-                    <p class="mt-2 text-sm text-slate-400">Real-time isolation sandbox pipeline execution history metrics.</p>
-                </header>
-
-                <div id="logs-grid" class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    <div id="loading-placeholder" class="col-span-full text-center py-12 text-slate-500">
-                        Initializing real-time telemetry stream...
-                    </div>
-                </div>
-            </div>
-        </main>
+{% extends "base.html" %}
+{% block title %}Execution Logs — AI DevOps{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-theme-primary">Execution Logs</h1>
+            <p class="mt-1 text-sm text-theme-secondary">Real-time sandbox pipeline execution history.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <select id="status-filter" class="rounded-lg border border-theme bg-theme-secondary px-3 py-2 text-sm text-theme-primary focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none">
+                <option value="all">All Status</option>
+                <option value="SUCCESS">Passed</option>
+                <option value="FAILED">Failed</option>
+                <option value="PENDING">Pending</option>
+            </select>
+            <button onclick="window.__dashboardController &amp;&amp; window.__dashboardController.refresh()" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors">
+                Refresh
+            </button>
+        </div>
     </div>
 
-    <script src="/static/js/dashboard.js" defer></script>
-</body>
-</html>
+    <div id="logs-grid" class="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div id="loading-placeholder" class="col-span-full text-center py-16 text-theme-secondary">
+            <div class="animate-pulse flex flex-col items-center gap-3">
+                <div class="h-8 w-8 rounded-full bg-brand-600/20 border-2 border-brand-500/30"></div>
+                <p class="text-sm">Loading telemetry stream...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

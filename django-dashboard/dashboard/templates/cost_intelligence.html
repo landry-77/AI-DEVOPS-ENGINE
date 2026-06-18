@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}Cost Intelligence — AI DevOps{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-theme-primary">Cost Intelligence</h1>
+            <p class="mt-1 text-sm text-theme-secondary">Cloud spend tracking, forecasts, and anomaly alerts.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="refreshAll()" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors">
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <div id="alerts-bar" class="mb-6 hidden"></div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+        <div class="rounded-xl border border-theme bg-theme-card p-5">
+            <p class="text-xs font-medium text-theme-secondary uppercase tracking-wider">Current Month Spend</p>
+            <p id="total-spend" class="mt-2 text-3xl font-bold text-theme-primary">$0.00</p>
+        </div>
+        <div class="rounded-xl border border-theme bg-theme-card p-5">
+            <p class="text-xs font-medium text-theme-secondary uppercase tracking-wider">Active Alerts</p>
+            <p id="alert-count" class="mt-2 text-3xl font-bold text-rose-400">0</p>
+        </div>
+        <div class="rounded-xl border border-theme bg-theme-card p-5">
+            <p class="text-xs font-medium text-theme-secondary uppercase tracking-wider">Forecasts Available</p>
+            <p id="forecast-count" class="mt-2 text-3xl font-bold text-brand-400">0</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="rounded-xl border border-theme bg-theme-card p-5">
+            <h3 class="text-sm font-semibold text-theme-primary mb-4">Spend by Provider</h3>
+            <canvas id="provider-chart" height="200"></canvas>
+            <div id="provider-legend" class="mt-3 text-xs text-theme-secondary space-y-1"></div>
+        </div>
+        <div class="rounded-xl border border-theme bg-theme-card p-5">
+            <h3 class="text-sm font-semibold text-theme-primary mb-4">Forecast vs Actual</h3>
+            <canvas id="forecast-chart" height="200"></canvas>
+            <div id="forecast-legend" class="mt-3 text-xs text-theme-secondary space-y-1"></div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="rounded-xl border border-theme bg-theme-card p-5">
+            <h3 class="text-sm font-semibold text-theme-primary mb-4">Top Services by Cost</h3>
+            <div id="top-services" class="space-y-2"></div>
+        </div>
+        <div class="rounded-xl border border-theme bg-theme-card p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-semibold text-theme-primary">Active Alerts</h3>
+                <label class="flex items-center gap-2 text-xs text-theme-secondary">
+                    <input type="checkbox" id="show-acknowledged" onchange="fetchAlerts()" class="rounded border-theme bg-theme-primary">
+                    Show acknowledged
+                </label>
+            </div>
+            <div id="alerts-list" class="space-y-2">
+                <p class="text-sm text-theme-secondary py-8 text-center">No alerts.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    let providerChart = null;
+    let forecastChart = null;
+
+    async function fetchSummary() {
+        try {
+            const res = await fetch('/api/v1/billing/summary/');
+            if (!res.ok) throw new Error('Network error');
+            const data = await res.json();
+            document.getElementById('total-spend').textContent = '$' + data.total_cost.toFixed(2);
+            document.getElementById('alert-count').textContent = data.active_alerts;
+            renderProviderChart(data.by_provider);
+            renderTopServices(data.top_services);
+        } catch (e) {
+            console.error('Summary fetch failed:', e);
+        }
+    }
+
+    async function fetchForecasts() {
+        try {
+            const res = await fetch('/api/v1/billing/predictions/');
+            if (!res.ok) throw new Error('Network error');
+            const data = await res.json();
+            document.getElementById('forecast-count').textContent = data.length;
+            renderForecastChart(data);
+        } catch (e) {
+            console.error('Forecast fetch failed:', e);
+        }
+    }
+
+    async function fetchAlerts() {
+        try {
+            const showAck = document.getElementById('show-acknowledged').checked;
+            const url = '/api/v1/billing/alerts/' + (showAck ? '?acknowledged=true' : '');
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Network error');
+            const data = await res.json();
+            renderAlertsList(data);
+            const alertsBar = document.getElementById('alerts-bar');
+            const unacknowledged = data.filter(a => !a.is_acknowledged);
+            if (unacknowledged.length > 0) {
+                alertsBar.className = 'mb-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-400';
+                alertsBar.textContent = unacknowledged.length + ' unacknowledged billing alert(s) — review below.';
+                alertsBar.classList.remove('hidden');
+            } else {
+                alertsBar.classList.add('hidden');
+            }
+        } catch (e) {
+            console.error('Alerts fetch failed:', e);
+        }
+    }
+
+    function renderProviderChart(providers) {
+        const ctx = document.getElementById('provider-chart').getContext('2d');
+        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+        if (providerChart) providerChart.destroy();
+        providerChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: providers.map(p => p.provider.toUpperCase()),
+                datasets: [{
+                    data: providers.map(p => p.cost),
+                    backgroundColor: colors.slice(0, providers.length),
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+            },
+        });
+        const legend = document.getElementById('provider-legend');
+        legend.innerHTML = providers.map((p, i) =>
+            '<div class="flex items-center gap-2"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:' + colors[i] + '"></span>' +
+            p.provider.toUpperCase() + ': $' + p.cost.toFixed(2) + '</div>'
+        ).join('');
+    }
+
+    function renderForecastChart(forecasts) {
+        const ctx = document.getElementById('forecast-chart').getContext('2d');
+        if (forecastChart) forecastChart.destroy();
+        if (forecasts.length === 0) {
+            document.getElementById('forecast-legend').innerHTML = '<p class="text-center py-4">No forecast data yet. Run prediction task first.</p>';
+            return;
+        }
+        const labels = forecasts.map(f => f.forecast_month.slice(0, 7));
+        const predicted = forecasts.map(f => f.predicted_cost);
+        const lower = forecasts.map(f => f.confidence_lower);
+        const upper = forecasts.map(f => f.confidence_upper);
+        const actual = forecasts.map(f => f.actual_cost);
+        const hasActual = actual.some(a => a !== null);
+
+        const datasets = [{
+            label: 'Predicted',
+            data: predicted,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59,130,246,0.1)',
+            fill: false,
+            tension: 0.3,
+        }];
+        if (hasActual) {
+            datasets.push({
+                label: 'Actual',
+                data: actual,
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16,185,129,0.1)',
+                fill: false,
+                tension: 0.3,
+                pointStyle: 'rect',
+            });
+        }
+        datasets.push({
+            label: 'Confidence Band',
+            data: upper,
+            borderColor: 'rgba(59,130,246,0.2)',
+            backgroundColor: 'rgba(59,130,246,0.08)',
+            fill: { target: { value: 0 }, above: 'rgba(59,130,246,0.08)', below: 'rgba(59,130,246,0.08)' },
+            pointRadius: 0,
+            tension: 0.3,
+        });
+
+        forecastChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } },
+                scales: {
+                    x: { ticks: { color: '#64748b', font: { size: 10 } }, grid: { display: false } },
+                    y: { ticks: { color: '#64748b', font: { size: 10 }, callback: v => '$' + v }, grid: { color: '#1e293b' } },
+                },
+            },
+        });
+    }
+
+    function renderTopServices(services) {
+        const container = document.getElementById('top-services');
+        if (services.length === 0) {
+            container.innerHTML = '<p class="text-sm text-theme-secondary py-8 text-center">No billing data yet.</p>';
+            return;
+        }
+        const maxCost = Math.max(...services.map(s => s.cost));
+        container.innerHTML = services.map(s => {
+            const pct = maxCost > 0 ? (s.cost / maxCost * 100) : 0;
+            return '<div>' +
+                '<div class="flex items-center justify-between text-xs mb-1">' +
+                '<span class="text-theme-primary font-medium">' + s.provider.toUpperCase() + ' / ' + s.service + '</span>' +
+                '<span class="text-theme-secondary">$' + s.cost.toFixed(2) + '</span>' +
+                '</div>' +
+                '<div class="w-full h-2 rounded-full bg-theme-primary overflow-hidden">' +
+                '<div class="h-full rounded-full bg-brand-500/60" style="width:' + pct + '%"></div>' +
+                '</div>' +
+                '</div>';
+        }).join('');
+    }
+
+    function renderAlertsList(alerts) {
+        const container = document.getElementById('alerts-list');
+        if (alerts.length === 0) {
+            container.innerHTML = '<p class="text-sm text-theme-secondary py-8 text-center">No alerts.</p>';
+            return;
+        }
+        container.innerHTML = alerts.map(a =>
+            '<div class="rounded-lg border ' + (a.severity === 'critical' ? 'border-rose-500/30 bg-rose-500/5' : 'border-amber-500/30 bg-amber-500/5') + ' p-3">' +
+            '<div class="flex items-start justify-between gap-3">' +
+            '<div class="min-w-0 flex-1">' +
+            '<div class="flex items-center gap-2">' +
+            '<span class="text-xs font-semibold uppercase ' + (a.severity === 'critical' ? 'text-rose-400' : 'text-amber-400') + '">' + a.severity + '</span>' +
+            '<span class="text-xs text-theme-secondary">' + a.provider.toUpperCase() + ' / ' + a.service + '</span>' +
+            (a.is_acknowledged ? '<span class="text-[10px] text-theme-secondary">(acknowledged)</span>' : '') +
+            '</div>' +
+            '<p class="mt-1 text-xs text-theme-primary">' + a.message + '</p>' +
+            '<p class="mt-1 text-[10px] text-theme-secondary font-mono">$' + a.current_cost.toFixed(2) + ' current vs $' + a.threshold_cost.toFixed(2) + ' threshold</p>' +
+            '</div>' +
+            (!a.is_acknowledged ? '<button onclick="acknowledgeAlert(' + a.id + ')" class="shrink-0 rounded px-2 py-1 text-[10px] font-medium text-brand-400 hover:text-brand-300 border border-brand-500/20 hover:bg-brand-500/10 transition-colors">Acknowledge</button>' : '') +
+            '</div>' +
+            '</div>'
+        ).join('');
+    }
+
+    async function acknowledgeAlert(id) {
+        try {
+            const res = await fetch('/api/v1/billing/alerts/' + id + '/acknowledge/', { method: 'POST' });
+            if (res.ok) {
+                fetchAlerts();
+                fetchSummary();
+            }
+        } catch (e) {
+            console.error('Acknowledge failed:', e);
+        }
+    }
+
+    function refreshAll() {
+        fetchSummary();
+        fetchForecasts();
+        fetchAlerts();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        refreshAll();
+        setInterval(fetchAlerts, 30000);
+        setInterval(fetchSummary, 60000);
+    });
+</script>
+{% endblock %}

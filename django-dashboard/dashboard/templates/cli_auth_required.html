@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Sign In Required — AI DevOps{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto mt-24 text-center">
+    <div class="rounded-xl border border-theme bg-theme-card p-8">
+        <div class="mx-auto h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
+            <svg class="h-6 w-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m0 0v2m0-2h2m-2 0H10m9.364-7.364A9 9 0 1112 3a9 9 0 017.364 4.636z"/>
+            </svg>
+        </div>
+        <h1 class="text-xl font-bold text-theme-primary mb-2">Authentication Required</h1>
+        <p class="text-sm text-theme-secondary mb-6">Sign in to your account to complete the CLI setup.</p>
+        <a href="/login/?next=/auth/github/callback/?installation_id={{ installation_id }}&cli_setup=1"
+           class="inline-block px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-medium transition-colors">
+            Sign In
+        </a>
+    </div>
+</div>
+{% endblock %}

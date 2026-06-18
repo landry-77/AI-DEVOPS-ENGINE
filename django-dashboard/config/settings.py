@@ -58,7 +58,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -146,6 +146,10 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'dashboard', 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'
+LOGOUT_REDIRECT_URL = '/'
+
 FERNET_KEYS = [os.getenv('FERNET_KEY', 'd6TpYJgqZ7mXn3r5v8x/B?E(G+KbPeShVmYq3s6v9y$B&E)H@McQfTjWnZq4t7w')]
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
@@ -171,19 +175,33 @@ CELERY_BEAT_SCHEDULE = {
     },
     "cleanup_old_records": {
         "task": "dashboard.tasks.cleanup_old_records",
-        "schedule": 2592000,
+        "schedule": 86400,
         "args": (),
     },
 }
+
+AUDIT_RETENTION_DAYS = int(os.getenv("AUDIT_RETENTION_DAYS", "90"))
 
 GITHUB_APP_IDENTIFIER = os.getenv("GITHUB_APP_IDENTIFIER", "")
 GITHUB_APP_PRIVATE_KEY_PATH = os.getenv("GITHUB_APP_PRIVATE_KEY_PATH", "")
 SLACK_ALERTS_WEBHOOK_URL = os.getenv("SLACK_ALERTS_WEBHOOK_URL", "")
 
+PAYMENT_GATEWAY = os.getenv("PAYMENT_GATEWAY", "stripe")
+
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SIGNING_SECRET = os.getenv("STRIPE_WEBHOOK_SIGNING_SECRET", "")
 STRIPE_ENTERPRISE_PRICE_ID = os.getenv("STRIPE_ENTERPRISE_PRICE_ID", "price_placeholder")
-STRIPE_SUCCESS_URL = os.getenv("STRIPE_SUCCESS_URL", "https://mardi-cattle-charbroil.ngrok-free.dev/dashboard/")
-STRIPE_CANCEL_URL = os.getenv("STRIPE_CANCEL_URL", "https://mardi-cattle-charbroil.ngrok-free.dev/")
+STRIPE_SUCCESS_URL = os.getenv("STRIPE_SUCCESS_URL", "http://localhost/dashboard/")
+STRIPE_CANCEL_URL = os.getenv("STRIPE_CANCEL_URL", "http://localhost/")
 
+PAYMENT_MANUAL_REDIRECT_URL = os.getenv("PAYMENT_MANUAL_REDIRECT_URL", "/dashboard/")
+
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "console")
+EMAIL_FROM_ADDRESS = os.getenv("EMAIL_FROM_ADDRESS", "billing@yourstartupdomain.com")
+EMAIL_FROM_NAME = os.getenv("EMAIL_FROM_NAME", "AI DevOps Billing")
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
+EMAIL_SMTP_HOST = os.getenv("EMAIL_SMTP_HOST", "smtp.gmail.com")
+EMAIL_SMTP_PORT = int(os.getenv("EMAIL_SMTP_PORT", "587"))
+EMAIL_SMTP_TLS = os.getenv("EMAIL_SMTP_TLS", "true").lower() == "true"
+EMAIL_SMTP_USER = os.getenv("EMAIL_SMTP_USER", "")
+EMAIL_SMTP_PASSWORD = os.getenv("EMAIL_SMTP_PASSWORD", "")

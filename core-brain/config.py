@@ -12,10 +12,12 @@ DOCKER_HOST = os.getenv("DOCKER_HOST", "tcp://localhost:2375")
 SANDBOX_IMAGE = os.getenv("SANDBOX_IMAGE", "python:3.11-slim")
 
 HOST = os.getenv("HOST", "0.0.0.0")
-PORT = int(os.getenv("PORT", "8000"))
+PORT = int(os.getenv("PORT", "8010"))
 
-LITELLM_MODEL = os.getenv("LITELLM_MODEL", "openrouter/qwen/qwen-2.5-coder-32b-instruct")
-OLLAMA_API_BASE = os.getenv("OLLAMA_API_BASE", "https://openrouter.ai/api/v1")
+SLACK_ANALYSIS_WEBHOOK_URL = os.getenv("SLACK_ANALYSIS_WEBHOOK_URL", "")
+
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL") or os.getenv("LITELLM_MODEL", "openai/gpt-4o-mini")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL") or os.getenv("OLLAMA_API_BASE", "https://openrouter.ai/api/v1")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 
 SYSTEM_PROMPT = """You are a Principal Software Engineer at a top-tier technology company.

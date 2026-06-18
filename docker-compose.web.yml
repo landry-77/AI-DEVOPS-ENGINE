@@ -1,45 +1,63 @@
-version: '3.8'
 
 services:
   caddy-proxy:
     image: caddy:2-alpine
+    container_name: production-caddy-proxy
     ports:
-      - "80:80"
-      - "443:443"
+      - "${CADDY_HTTP_PORT:-80}:80"
+      - "${CADDY_HTTPS_PORT:-443}:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ${CADDYFILE_PATH:-./Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
     networks:
       - ai-devops-network
 
   node-ingestion:
-    image: yourdockerhub/node-gateway:latest
+    image: ${INGESTION_IMAGE:-yourdockerhub/node-gateway:latest}
+    container_name: edge-node-gateway
     environment:
-      - CELERY_BROKER_URL=redis://your-dedicated-redis-broker-ip:6379/0
-      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+      - PORT=3000
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET?}
+      - CELERY_BROKER_URL=redis://${REDIS_HOST:-your-dedicated-redis-broker-ip}:${REDIS_PORT:-6379}/${REDIS_DB:-0}
     depends_on:
       - caddy-proxy
     networks:
       - ai-devops-network
 
   django-dashboard:
-    image: yourdockerhub/django-app:latest
+    image: ${DJANGO_IMAGE:-yourdockerhub/django-app:latest}
+    container_name: control-django-dashboard
     environment:
-      - DATABASE_URL=postgres://admin:pwd@your-managed-db-ip:5432/db
-      - CELERY_BROKER_URL=redis://your-dedicated-redis-broker-ip:6379/0
-      - CELERY_RESULT_BACKEND=redis://your-dedicated-redis-broker-ip:6379/0
-      - GITHUB_APP_IDENTIFIER=${GITHUB_APP_IDENTIFIER}
-      - GITHUB_APP_PRIVATE_KEY_PATH=/app/certs/github_app.pem
-      - SLACK_ALERTS_WEBHOOK_URL=${SLACK_ALERTS_WEBHOOK_URL}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_WEBHOOK_SIGNING_SECRET=${STRIPE_WEBHOOK_SIGNING_SECRET}
-      - STRIPE_ENTERPRISE_PRICE_ID=${STRIPE_ENTERPRISE_PRICE_ID}
-      - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL}
-      - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL}
-      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
-      - FERNET_KEY=${FERNET_KEY}
+      - DATABASE_URL=postgres://${POSTGRES_USER?}:${POSTGRES_PASSWORD?}@${POSTGRES_HOST?}:${POSTGRES_PORT:-5432}/${POSTGRES_DB?}
+      - CELERY_BROKER_URL=redis://${REDIS_HOST:-your-dedicated-redis-broker-ip}:${REDIS_PORT:-6379}/${REDIS_DB:-0}
+      - CELERY_RESULT_BACKEND=redis://${REDIS_HOST:-your-dedicated-redis-broker-ip}:${REDIS_PORT:-6379}/${REDIS_DB:-0}
+      - GITHUB_APP_IDENTIFIER=${GITHUB_APP_IDENTIFIER?}
+      - GITHUB_APP_PRIVATE_KEY_PATH=${GITHUB_APP_PRIVATE_KEY_PATH:-/app/certs/github_app.pem}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET?}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY?}
+      - FERNET_KEY=${FERNET_KEY?}
+      - DEBUG=${DJANGO_DEBUG:-False}
+      - AUDIT_RETENTION_DAYS=${AUDIT_RETENTION_DAYS:-90}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
+      - PAYMENT_GATEWAY=${PAYMENT_GATEWAY:-stripe}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SIGNING_SECRET=${STRIPE_WEBHOOK_SIGNING_SECRET:-}
+      - STRIPE_ENTERPRISE_PRICE_ID=${STRIPE_ENTERPRISE_PRICE_ID:-price_placeholder}
+      - STRIPE_SUCCESS_URL=${STRIPE_SUCCESS_URL:-http://localhost/dashboard/}
+      - STRIPE_CANCEL_URL=${STRIPE_CANCEL_URL:-http://localhost/}
+      - PAYMENT_MANUAL_REDIRECT_URL=${PAYMENT_MANUAL_REDIRECT_URL:-/dashboard/}
+      - EMAIL_BACKEND=${EMAIL_BACKEND:-console}
+      - EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS:-billing@yourstartupdomain.com}
+      - EMAIL_FROM_NAME=${EMAIL_FROM_NAME:-AI DevOps Billing}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY:-}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST:-smtp.gmail.com}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-587}
+      - EMAIL_SMTP_TLS=${EMAIL_SMTP_TLS:-true}
+      - EMAIL_SMTP_USER=${EMAIL_SMTP_USER:-}
+      - EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD:-}
+      - SLACK_ALERTS_WEBHOOK_URL=${SLACK_ALERTS_WEBHOOK_URL:-}
     volumes:
-      - ./certs:/app/certs:ro
+      - ${CERTS_PATH:-./certs}:/app/certs:ro
     depends_on:
       - caddy-proxy
     networks:

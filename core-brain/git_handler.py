@@ -23,6 +23,57 @@ class EnterpriseGitHandler:
         print(f"[COMMENT] {error_msg}")
         return error_msg
 
+    def post_review_suggestion(self, pull_request_number: int, file_path: str, patched_code: str) -> str:
+        pr_resp = requests.get(
+            f"{self.repo_url}/pulls/{pull_request_number}",
+            headers=self.headers,
+        )
+        if pr_resp.status_code != 200:
+            return f"Failed to get PR info: {pr_resp.text}"
+        pr_data = pr_resp.json()
+        head_sha = pr_data["head"]["sha"]
+
+        files_resp = requests.get(
+            f"{self.repo_url}/pulls/{pull_request_number}/files",
+            headers=self.headers,
+        )
+        if files_resp.status_code != 200:
+            return f"Failed to get PR files: {files_resp.text}"
+        pr_files = files_resp.json()
+        target = next((f for f in pr_files if f["filename"] == file_path), None)
+        if not target:
+            return f"File {file_path} not found in PR diff."
+
+        patch = target.get("patch", "")
+        if not patch:
+            return f"No diff patch available for {file_path}."
+        diff_line = None
+        for line in patch.split("\n"):
+            if line.startswith("@@ "):
+                parts = line.split("+")[1] if "+" in line else ""
+                diff_line = int(parts.split(",")[0]) if parts else None
+                break
+        if not diff_line:
+            diff_line = 1
+
+        payload = {
+            "body": f"```suggestion\n{patched_code}\n```",
+            "commit_id": head_sha,
+            "path": file_path,
+            "line": diff_line,
+            "side": "RIGHT",
+        }
+
+        url = f"{self.repo_url}/pulls/{pull_request_number}/comments"
+        resp = requests.post(url, json=payload, headers=self.headers)
+        if resp.status_code == 201:
+            url = resp.json().get("html_url", "")
+            print(f"[SUGGESTION] Posted on PR #{pull_request_number}: {url}")
+            return url
+        err = f"Failed to post suggestion on PR #{pull_request_number}: {resp.text}"
+        print(f"[SUGGESTION] {err}")
+        return err
+
     def commit_fix_to_pr_branch(self, pull_request_number: int, pr_head_branch: str, file_path: str, patched_code: str) -> str:
         file_resp = requests.get(
             f"{self.repo_url}/contents/{file_path}?ref={pr_head_branch}",

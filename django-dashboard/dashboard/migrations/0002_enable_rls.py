@@ -1,6 +1,24 @@
 from django.db import migrations
 
 
+def enable_rls(apps, schema_editor):
+    if schema_editor.connection.vendor != "postgresql":
+        return
+    schema_editor.execute("ALTER TABLE dashboard_runauditlog ENABLE ROW LEVEL SECURITY;")
+    schema_editor.execute("""
+        CREATE POLICY tenant_isolation_policy ON dashboard_runauditlog
+        FOR ALL
+        USING (repository_name LIKE current_setting('app.current_tenant') || '/%');
+    """)
+
+
+def disable_rls(apps, schema_editor):
+    if schema_editor.connection.vendor != "postgresql":
+        return
+    schema_editor.execute("ALTER TABLE dashboard_runauditlog DISABLE ROW LEVEL SECURITY;")
+    schema_editor.execute("DROP POLICY tenant_isolation_policy ON dashboard_runauditlog;")
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -8,16 +26,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql="ALTER TABLE dashboard_runauditlog ENABLE ROW LEVEL SECURITY;",
-            reverse_sql="ALTER TABLE dashboard_runauditlog DISABLE ROW LEVEL SECURITY;",
-        ),
-        migrations.RunSQL(
-            sql="""
-            CREATE POLICY tenant_isolation_policy ON dashboard_runauditlog
-            FOR ALL
-            USING (repository_name LIKE current_setting('app.current_tenant') || '/%');
-            """,
-            reverse_sql="DROP POLICY tenant_isolation_policy ON dashboard_runauditlog;",
-        ),
+        migrations.RunPython(enable_rls, disable_rls),
     ]

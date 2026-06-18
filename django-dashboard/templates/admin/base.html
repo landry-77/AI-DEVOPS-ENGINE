@@ -1,0 +1,344 @@
+{% load i18n static %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}
+{% get_current_language_bidi as LANGUAGE_BIDI %}
+<html lang="{{ LANGUAGE_CODE|default:"en-us" }}" dir="{{ LANGUAGE_BIDI|yesno:'rtl,ltr,auto' }}" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}{% endblock %} | AI DevOps Engine</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="{% static "admin/css/base.css" %}">
+<link rel="stylesheet" href="{% static "admin/css/dark_mode.css" %}">
+{% if not is_popup and is_nav_sidebar_enabled %}
+  <link rel="stylesheet" href="{% static "admin/css/nav_sidebar.css" %}">
+  <script src="{% static 'admin/js/nav_sidebar.js' %}" defer></script>
+{% endif %}
+{% block extrastyle %}{% endblock %}
+{% if LANGUAGE_BIDI %}<link rel="stylesheet" href="{% block stylesheet_rtl %}{% static "admin/css/rtl.css" %}{% endblock %}">{% endif %}
+{% block extrahead %}{% endblock %}
+{% block responsive %}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static "admin/css/responsive.css" %}">
+    {% if LANGUAGE_BIDI %}<link rel="stylesheet" href="{% static "admin/css/responsive_rtl.css" %}">{% endif %}
+{% endblock %}
+{% block blockbots %}<meta name="robots" content="NONE,NOARCHIVE">{% endblock %}
+
+<script>
+    tailwind.config = {
+        darkMode: 'class',
+        theme: {
+            extend: {
+                fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                colors: {
+                    brand: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a', 950: '#172554' },
+                    accent: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95', 950: '#2e1065' },
+                }
+            }
+        }
+    }
+</script>
+<style>
+    :root {
+        --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        --font-family-monospace: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    }
+    html[data-theme="dark"] {
+        --bg-primary: #0f172a;
+        --bg-secondary: #1e293b;
+        --bg-card: #1e293b;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --border-color: #334155;
+        --nav-bg: linear-gradient(135deg, #1e3a8a, #4c1d95);
+        --primary: #3b82f6;
+        --secondary: #60a5fa;
+        --accent: #6366f1;
+        --primary-fg: #fff;
+        --body-fg: #f1f5f9;
+        --body-bg: #0f172a;
+        --body-quiet-color: #94a3b8;
+        --body-loud-color: #f8fafc;
+        --header-color: #ffffff;
+        --header-branding-color: #ffffff;
+        --header-bg: linear-gradient(135deg, #1e3a8a, #4c1d95);
+        --selected-row: #1e293b;
+        --hairline-color: #334155;
+        --link-fg: #60a5fa;
+        --link-hover-color: #93c5fd;
+        --darkened-bg: #1e293b;
+        --button-bg: #3b82f6;
+        --button-hover-bg: #2563eb;
+        --default-button-bg: #3b82f6;
+        --default-button-hover-bg: #2563eb;
+        --close-button-bg: #475569;
+        --close-button-hover-bg: #64748b;
+        --delete-button-bg: #f43f5e;
+        --delete-button-hover-bg: #e11d48;
+        --object-tools-bg: #3b82f6;
+        --object-tools-hover-bg: #2563eb;
+    }
+    html[data-theme="light"] {
+        --bg-primary: #f8fafc;
+        --bg-secondary: #ffffff;
+        --bg-card: #ffffff;
+        --text-primary: #0f172a;
+        --text-secondary: #64748b;
+        --border-color: #e2e8f0;
+        --nav-bg: linear-gradient(135deg, #2563eb, #7c3aed);
+
+        --primary: #2563eb;
+        --secondary: #1d4ed8;
+        --accent: #6366f1;
+        --primary-fg: #fff;
+        --body-fg: #1e293b;
+        --body-bg: #f8fafc;
+        --body-quiet-color: #64748b;
+        --body-loud-color: #0f172a;
+        --header-color: #ffffff;
+        --header-branding-color: #ffffff;
+        --header-bg: linear-gradient(135deg, #1e3a8a, #4c1d95);
+        --selected-row: #eff6ff;
+        --hairline-color: #e2e8f0;
+        --border-custom: #e2e8f0;
+        --link-fg: #2563eb;
+        --link-hover-color: #1d4ed8;
+        --darkened-bg: #f1f5f9;
+        --button-bg: #2563eb;
+        --button-hover-bg: #1d4ed8;
+        --default-button-bg: #2563eb;
+        --default-button-hover-bg: #1d4ed8;
+        --close-button-bg: #64748b;
+        --close-button-hover-bg: #475569;
+        --delete-button-bg: #e11d48;
+        --delete-button-hover-bg: #be123c;
+        --object-tools-bg: #2563eb;
+        --object-tools-hover-bg: #1d4ed8;
+    }
+    * { transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-primary); color: var(--body-fg); }
+    .bg-theme-primary { background: var(--bg-primary); }
+    .bg-theme-secondary { background: var(--bg-secondary); }
+    .bg-theme-card { background: var(--bg-card); }
+    .text-theme-primary { color: var(--text-primary); }
+    .text-theme-secondary { color: var(--text-secondary); }
+    .border-theme { border-color: var(--border-color); }
+    .nav-gradient { background: var(--nav-bg); }
+
+    .sidebar-item { transition: all 0.15s ease; }
+    .sidebar-item:hover { background: rgba(99,102,241,0.1); }
+    .sidebar-item.active { background: rgba(99,102,241,0.15); color: #818cf8; border-right: 2px solid #818cf8; }
+
+    #header { display: none; }
+    .breadcrumbs { background: var(--darkened-bg); color: var(--body-quiet-color); padding: 12px 24px; font-size: 13px; border-bottom: 1px solid var(--hairline-color); margin: -24px -24px 20px -24px; border-radius: 0; }
+    .breadcrumbs a { color: var(--link-fg); }
+    .module { border-radius: 12px; border: 1px solid var(--hairline-color); background: var(--bg-card); box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 20px; }
+    .module h2, .module caption { background: var(--primary); color: var(--primary-fg); padding: 10px 16px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 12px 12px 0 0; }
+    .module table { border-radius: 12px; overflow: hidden; }
+    #changelist { border-radius: 12px; background: var(--bg-card); border: 1px solid var(--hairline-color); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    #changelist .actions { background: var(--darkened-bg); border-radius: 12px 12px 0 0; padding: 12px 16px; }
+    #changelist .actions .button { background: var(--button-bg); }
+    .change-list .filtered { min-height: 400px; }
+    #toolbar { background: var(--darkened-bg); border-bottom: 1px solid var(--hairline-color); padding: 12px 16px; border-radius: 12px 12px 0 0; }
+    #toolbar form input[type=submit] { background: var(--button-bg); border-radius: 8px; font-weight: 500; padding: 8px 16px; border: none; color: #fff; }
+    #toolbar form input[type=text] { border: 1px solid var(--hairline-color); border-radius: 8px; padding: 8px 12px; }
+    #changelist-filter { border-radius: 12px; background: var(--bg-card); border: 1px solid var(--hairline-color); }
+    #changelist-filter h2 { background: var(--primary); color: var(--primary-fg); border-radius: 12px 12px 0 0; }
+    #changelist-filter li.selected a { color: var(--link-fg); }
+    .button, input[type=submit], input[type=button], .submit-row input, a.button {
+        background: var(--button-bg); border-radius: 8px; font-weight: 500; padding: 10px 16px; border: none; transition: all 0.15s; color: #fff; font-family: var(--font-family-primary);
+    }
+    .button:hover, input[type=submit]:hover, input[type=button]:hover { background: var(--button-hover-bg); }
+    .default { background: var(--default-button-bg); }
+    .default:hover { background: var(--default-button-hover-bg); }
+    .button.close-button { background: var(--close-button-bg); }
+    .button.close-button:hover { background: var(--close-button-hover-bg); }
+    .button.delete-button { background: var(--delete-button-bg); }
+    .button.delete-button:hover { background: var(--delete-button-hover-bg); }
+    input, textarea, select { border-radius: 8px; border: 1px solid var(--hairline-color); padding: 10px 12px; font-family: var(--font-family-primary); font-size: 14px; background: var(--bg-primary); color: var(--body-fg); }
+    input:focus, textarea:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59,130,246,0.15); outline: none; }
+    .form-row { padding: 16px 20px; border-bottom: 1px solid var(--hairline-color); }
+    fieldset { border-radius: 12px; border: 1px solid var(--hairline-color); margin-bottom: 20px; }
+    fieldset h2 { background: var(--darkened-bg); color: var(--body-quiet-color); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 8px 16px; }
+    .aligned label { padding: 6px 0; color: var(--body-quiet-color); font-size: 13px; font-weight: 500; }
+    .paginator { background: var(--darkened-bg); border-radius: 0 0 12px 12px; padding: 12px 16px; color: var(--body-quiet-color); font-size: 13px; }
+    .paginator a { color: var(--link-fg); }
+    .paginator .this-page { background: var(--primary); color: var(--primary-fg); padding: 4px 10px; border-radius: 6px; font-weight: 600; }
+    .messagelist li { border-radius: 8px; border-left: 4px solid var(--primary); padding: 12px 16px; margin-bottom: 8px; }
+    .messagelist li.success { border-color: #22c55e; background: rgba(34,197,94,0.1); color: #4ade80; }
+    .messagelist li.error { border-color: #ef4444; background: rgba(239,68,68,0.1); color: #f87171; }
+    .messagelist li.warning { border-color: #f59e0b; background: rgba(245,158,11,0.1); color: #fbbf24; }
+    .messagelist li.info { border-color: #3b82f6; background: rgba(59,130,246,0.1); color: #60a5fa; }
+    #content-related { border-radius: 12px; border: 1px solid var(--hairline-color); background: var(--bg-card); }
+    #content-related h3 { font-size: 14px; font-weight: 600; color: var(--body-fg); }
+    #content-related .module h2 { background: var(--darkened-bg); color: var(--body-quiet-color); }
+    .quiet, .help { color: var(--body-quiet-color); font-size: 12px; }
+    a:link, a:visited { color: var(--link-fg); }
+    a:hover { color: var(--link-hover-color); }
+    .submit-row { background: var(--darkened-bg); border-top: 1px solid var(--hairline-color); padding: 14px 20px; border-radius: 0 0 12px 12px; }
+    .object-tools { margin: -8px 0 16px; }
+    .object-tools a { background: var(--object-tools-bg); border-radius: 8px; padding: 8px 16px; font-weight: 500; font-size: 12px; }
+    .object-tools a:hover { background: var(--object-tools-hover-bg); }
+    .selector { display: flex; gap: 16px; }
+    .selector h2 { background: var(--darkened-bg); color: var(--body-quiet-color); font-size: 11px; text-transform: uppercase; }
+    .calendar caption { background: var(--primary); color: var(--primary-fg); }
+    .calendarbox, .clockbox { background: var(--bg-card); border: 1px solid var(--hairline-color); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+    .calendar th { background: var(--darkened-bg); color: var(--body-quiet-color); }
+    .calendar td { border-color: var(--hairline-color); }
+    .calendar td a { background: var(--darkened-bg); border-radius: 6px; }
+    .calendar td a:hover { background: var(--primary); color: var(--primary-fg); }
+    .calendar td.selected a { background: var(--primary); color: var(--primary-fg); }
+    .calendar-shortcuts { background: var(--darkened-bg); border-top: 1px solid var(--hairline-color); }
+    .timelist li:hover { background: var(--darkened-bg); }
+    td, th { padding: 10px 14px; border-color: var(--hairline-color); font-size: 13px; }
+    thead th { background: var(--darkened-bg); color: var(--body-quiet-color); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    tr:nth-child(odd) { background: transparent; }
+    tr.selected { background: var(--selected-row); }
+    tr:hover { background: rgba(99,102,241,0.05); }
+    #result_list { border-collapse: separate; border-spacing: 0; }
+    .dashboard #content { display: flex; gap: 24px; }
+    .dashboard .module table th { width: 100%; }
+    .inline-group { border-radius: 12px; border: 1px solid var(--hairline-color); }
+    .inline-group h2 { background: var(--primary); color: var(--primary-fg); border-radius: 12px 12px 0 0; }
+    .inline-related { border-bottom: 1px solid var(--hairline-color); }
+    .inline-related h3 { background: var(--darkened-bg); color: var(--body-fg); font-size: 13px; padding: 8px 16px; }
+    .delete-confirmation form input[type=submit] { border-radius: 8px; }
+    .errornote { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; }
+    .errorlist { color: #f87171; font-size: 12px; }
+    .required label, label.required { color: var(--body-fg); font-weight: 600; }
+    .vForeignKeyRawIdAdminField { width: auto !important; }
+    .login #container { max-width: 400px; margin: 80px auto; }
+    .login #content { padding: 0; }
+    .login .form-row { padding: 12px 0; border: none; }
+    .login .submit-row { background: transparent; border: none; padding: 16px 0 0; }
+</style>
+</head>
+<body class="{% if is_popup %}popup {% endif %}{% block bodyclass %}{% endblock %}" data-admin-utc-offset="{% now "Z" %}">
+
+<div class="flex h-full min-h-screen">
+    {% if not is_popup %}
+    <aside class="hidden md:flex md:flex-col w-64 border-r border-theme bg-theme-secondary">
+        <div class="nav-gradient px-6 py-5">
+            <div class="flex items-center gap-3">
+                <div class="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center">
+                    <svg class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold text-white tracking-tight">AI DevOps</h1>
+                    <p class="text-[10px] text-blue-200/70">Engine Admin</p>
+                </div>
+            </div>
+        </div>
+        <nav class="flex-1 px-3 py-4 space-y-1">
+            <a href="{% url 'admin:index' %}" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-theme-secondary">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                Dashboard
+            </a>
+            <a href="{% url 'admin:auth_user_changelist' %}" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-theme-secondary">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"/></svg>
+                Users
+            </a>
+            <a href="{% url 'admin:index' %}" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-theme-secondary">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                Models
+            </a>
+            <div class="border-t border-theme my-3"></div>
+            <a href="/dashboard/" class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-theme-secondary">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Execution Logs
+            </a>
+        </nav>
+        <div class="border-t border-theme p-4">
+            <button onclick="toggleTheme()" class="sidebar-item flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-theme-secondary">
+                <svg id="theme-icon-dark" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                <svg id="theme-icon-light" class="h-5 w-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                <span id="theme-label">Dark Mode</span>
+            </button>
+        </div>
+    </aside>
+    {% endif %}
+
+    <div class="flex-1 flex flex-col min-w-0">
+        {% if not is_popup %}
+        <header class="md:hidden nav-gradient px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="h-7 w-7 rounded-lg bg-white/10 flex items-center justify-center">
+                    <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <span class="text-sm font-bold text-white">AI DevOps Admin</span>
+            </div>
+            <button onclick="toggleTheme()" class="text-white/70 hover:text-white p-1">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            </button>
+        </header>
+        {% endif %}
+
+        <main class="flex-1 overflow-auto">
+            {% block breadcrumbs %}{% endblock %}
+            {% block messages %}
+                {% if messages %}
+                <ul class="messagelist px-6 pt-6">{% for message in messages %}
+                    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
+                {% endfor %}</ul>
+                {% endif %}
+            {% endblock messages %}
+            <div id="content" class="{% block coltype %}colM{% endblock %} p-6">
+                {% block pretitle %}{% endblock %}
+                {% block content_title %}{% if title %}<h1 class="text-2xl font-bold mb-6" style="color:var(--body-fg)">{{ title }}</h1>{% endif %}{% endblock %}
+                {% block content_subtitle %}{% if subtitle %}<h2 class="text-lg mb-4" style="color:var(--body-quiet-color)">{{ subtitle }}</h2>{% endif %}{% endblock %}
+                {% block content %}
+                    {% block object-tools %}{% endblock %}
+                    {{ content }}
+                {% endblock %}
+                {% block sidebar %}{% endblock %}
+                <br class="clear">
+            </div>
+            {% block footer %}<div id="footer"></div>{% endblock %}
+        </main>
+    </div>
+</div>
+
+<svg xmlns="http://www.w3.org/2000/svg" class="base-svgs" style="display:none">
+  <symbol viewBox="0 0 24 24" width="1rem" height="1rem" id="icon-auto"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-2V4a8 8 0 1 0 0 16z"/></symbol>
+  <symbol viewBox="0 0 24 24" width="1rem" height="1rem" id="icon-moon"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M10 7a7 7 0 0 0 12 4.9v.1c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2h.1A6.979 6.979 0 0 0 10 7zm-6 5a8 8 0 0 0 15.062 3.762A9 9 0 0 1 8.238 4.938 7.999 7.999 0 0 0 4 12z"/></symbol>
+  <symbol viewBox="0 0 24 24" width="1rem" height="1rem" id="icon-sun"><path d="M0 0h24v24H0z" fill="currentColor"/><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-2a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11 1h2v3h-2V1zm0 19h2v3h-2v-3zM3.515 4.929l1.414-1.414L7.05 5.636 5.636 7.05 3.515 4.93zM16.95 18.364l1.414-1.414 2.121 2.121-1.414 1.414-2.121-2.121zm2.121-14.85l1.414 1.415-2.121 2.121-1.414-1.414 2.121-2.121zM5.636 16.95l1.414 1.414-2.121 2.121-1.414-1.414 2.121-2.121zM23 11v2h-3v-2h3zM4 11v2H1v-2h3z"/></symbol>
+</svg>
+
+<script>
+    (function() {
+        const theme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+
+        function setThemeIcons(t) {
+            const darkIcon = document.getElementById('theme-icon-dark');
+            const lightIcon = document.getElementById('theme-icon-light');
+            const label = document.getElementById('theme-label');
+            if (!darkIcon || !lightIcon) return;
+            if (t === 'dark') {
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
+                if (label) label.textContent = 'Dark Mode';
+            } else {
+                darkIcon.classList.add('hidden');
+                lightIcon.classList.remove('hidden');
+                if (label) label.textContent = 'Light Mode';
+            }
+        }
+        setThemeIcons(theme);
+        window.setThemeIcons = setThemeIcons;
+    })();
+
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        if (window.setThemeIcons) window.setThemeIcons(next);
+    }
+</script>
+{% block extrafoot %}{% endblock %}
+</body>
+</html>

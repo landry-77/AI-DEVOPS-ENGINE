@@ -10,6 +10,9 @@
 *.env
 secrets.json
 
+# But track the example env file:
+!.env.example
+
 # 2. Cryptographic Certificates & Private Keys
 certs/
 *.pem

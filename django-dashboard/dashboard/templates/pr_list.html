@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Pull Requests — AI DevOps{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-theme-primary">Pull Requests</h1>
+            <p class="mt-1 text-sm text-theme-secondary">All PR fix attempts with suggestion status.</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <select id="suggestion-filter" class="rounded-lg border border-theme bg-theme-secondary px-3 py-2 text-sm text-theme-primary focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none">
+                <option value="all">All PRs</option>
+                <option value="posted">Suggestion Posted</option>
+                <option value="skipped">Suggestion Skipped</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="rounded-xl border border-theme bg-theme-card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-theme text-sm">
+                <thead class="bg-theme-secondary">
+                    <tr>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Repository</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">PR</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Status</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Suggestion</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Language</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Date</th>
+                    </tr>
+                </thead>
+                <tbody id="pr-table-body" class="divide-y divide-theme">
+                    <tr><td colspan="6" class="px-5 py-12 text-center text-theme-secondary">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const tbody = document.getElementById('pr-table-body');
+    const filterSelect = document.getElementById('suggestion-filter');
+    let allLogs = [];
+
+    async function fetchPRs() {
+        try {
+            const res = await fetch('/api/v1/logs-stream/');
+            if (!res.ok) throw new Error('Network error');
+            allLogs = await res.json();
+            renderTable();
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-12 text-center text-theme-secondary">Failed to load: ${e.message}</td></tr>`;
+        }
+    }
+
+    function renderTable() {
+        const filter = filterSelect.value;
+        const prLogs = allLogs.filter(l => l.pull_request_number && l.pull_request_number > 0);
+
+        const filtered = filter === 'all' ? prLogs
+            : filter === 'posted' ? prLogs.filter(l => l.suggestion_posted)
+            : prLogs.filter(l => !l.suggestion_posted);
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="px-5 py-12 text-center text-theme-secondary">No PRs match the current filter.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        filtered.forEach(log => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-theme-secondary/50 transition-colors';
+
+            const isSuccess = log.execution_status === 'SUCCESS';
+            const statusDot = isSuccess ? 'bg-emerald-400' : log.execution_status === 'PENDING' ? 'bg-amber-400' : 'bg-rose-400';
+
+            tr.innerHTML = `
+                <td class="px-5 py-4 text-sm font-medium text-theme-primary whitespace-nowrap">${log.repository_name}</td>
+                <td class="px-5 py-4">
+                    <a href="https://github.com/${log.repository_name}/pull/${log.pull_request_number}" target="_blank" class="inline-flex items-center gap-1.5 text-brand-400 hover:text-brand-300 font-medium transition-colors">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        #${log.pull_request_number}
+                    </a>
+                </td>
+                <td class="px-5 py-4">
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-2 w-2 rounded-full ${statusDot}"></span>
+                        <span class="text-sm text-theme-primary">${log.execution_status}</span>
+                    </span>
+                </td>
+                <td class="px-5 py-4">
+                    ${log.suggestion_posted
+                        ? `<span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/20">
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Button Posted
+                        </span>`
+                        : `<span class="inline-flex items-center gap-1 rounded-full bg-slate-500/10 px-2.5 py-1 text-xs font-medium text-slate-400 ring-1 ring-slate-500/20">
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            Skipped
+                        </span>`
+                    }
+                </td>
+                <td class="px-5 py-4">
+                    <span class="rounded px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider ring-1 ring-inset ${(log.target_language || 'python') === 'python' ? 'bg-sky-500/10 text-sky-400 ring-sky-500/20' : 'bg-amber-500/10 text-amber-400 ring-amber-500/20'}">${log.target_language || 'python'}</span>
+                </td>
+                <td class="px-5 py-4 text-sm text-theme-secondary whitespace-nowrap font-mono">${new Date(log.created_at).toLocaleString()}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    filterSelect.addEventListener('change', renderTable);
+    setInterval(fetchPRs, 8000);
+    document.addEventListener('DOMContentLoaded', fetchPRs);
+</script>
+{% endblock %}

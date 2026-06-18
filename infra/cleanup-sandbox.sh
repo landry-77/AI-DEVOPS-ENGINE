@@ -21,10 +21,10 @@ else
     for CONTAINER_ID in $ACTIVE_SANDBOXES; do
         CREATED_AT_RAW=$(docker inspect --format='{{.State.StartedAt}}' "$CONTAINER_ID")
 
-        if date -d "test" >/dev/null 2>&1; then
+        if date -d "@0" >/dev/null 2>&1; then
             START_TIMESTAMP=$(date -d "$CREATED_AT_RAW" +%s)
         else
-            START_TIMESTAMP=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${CREATED_AT_RAW:0:19}" +%s)
+            START_TIMESTAMP=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${CREATED_AT_RAW:0:19}" +%s 2>/dev/null || echo "${CREATED_AT_RAW:0:4}${CREATED_AT_RAW:5:2}${CREATED_AT_RAW:8:2}${CREATED_AT_RAW:11:2}${CREATED_AT_RAW:14:2}${CREATED_AT_RAW:17:2}")
         fi
 
         ELAPSED_AGE=$((CURRENT_TIME - START_TIMESTAMP))

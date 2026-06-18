@@ -35,7 +35,7 @@ Running unverified, AI-generated code snippets directly on a production server c
 
 ### 2.2 Sandboxing Defenses
 
-- **Ephemeral Virtual File Systems:** AI patches are written into temporary local file blocks on the host server and mounted into testing containers under strict **Read-Only (`mode: ro`)** access bounds.
+- **Ephemeral Virtual File Systems:** AI patches are injected directly into isolated container environments via ephemeral memory buffers, with **no host filesystem exposure**.
 - **Air-Gapped Container Images:** Code verification tasks run inside localized, pre-baked Docker images (`local-pytest-sandbox` and `local-jest-sandbox`) that are entirely **cut off from the public internet**. This prevents malicious code from downloading external malware tools or transmitting data outside the server perimeter.
 - **Strict Hardware CEILING Constraints:** To stop Denial of Service (DoS) attacks or recursive loop crashes caused by invalid code generations, every sandbox container enforces rigid limits through the Docker SDK:
   - **Memory Limit Cap:** 512 MB maximum allocation bucket per run.
@@ -48,7 +48,7 @@ Running unverified, AI-generated code snippets directly on a production server c
 ### 3.1 GitHub App Integration Core
 
 - **Principle of Least Privilege:** The platform utilizes a verified GitHub App integration model, requesting only granular repository scopes ("Read access to code, Read/Write access to Pull Requests").
-- **No Long-Lived Credentials:** The system completely avoids insecure Personal Access Tokens (PATs). It uses short-lived repository installation tokens that automatically expire and rotate every **60 minutes**.
+- **No Long-Lived Credentials:** The system completely avoids insecure Personal Access Tokens (PATs). It uses short-lived repository installation tokens that expire after **60 minutes**, refreshed per-request instead of stored permanently.
 
 ### 3.2 Cryptographic API Key Security
 

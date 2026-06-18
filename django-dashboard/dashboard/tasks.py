@@ -1,10 +1,22 @@
 import os
+import json
+import math
+import time
 import requests
 from celery import shared_task, Task
 from django.conf import settings
+from datetime import timedelta
 from django.utils.timezone import now
-from .models import RunAuditLog, GitHubIntegration, Deployment
+from django.db.models import Sum, Avg
+from django.db.models.aggregates import StdDev
+from django.db.models.functions import TruncMonth
+from django.contrib.auth import get_user_model
+from .models import (
+    RunAuditLog, GitHubIntegration, Deployment, AuditLogEntry,
+    BillingRecord, BillingForecast, BillingAlert,
+)
 from .github_auth import refresh_installation_access_token
+from .emails import send_billing_alert_email
 
 
 def _set_github_commit_status(repo_full_name, commit_sha, state, description, token):
@@ -38,6 +50,8 @@ class EnterpriseTaskFailureMonitor(Task):
             target_language="unknown",
             execution_status="FAILED",
             execution_summary=f"Asynchronous Task Execution Error Trace:\n{str(exc)}",
+            pull_request_number=None,
+            suggestion_posted=False,
         )
 
         slack_webhook_url = getattr(settings, "SLACK_ALERTS_WEBHOOK_URL", None)
@@ -58,7 +72,7 @@ class EnterpriseTaskFailureMonitor(Task):
                         {"title": "Runtime Error Exception Trace", "value": f"```{str(exc)[:250]}```", "short": False},
                     ],
                     "footer": "AI DevOps Platform Telemetry System",
-                    "ts": int(requests.utils.time.time()),
+                    "ts": int(time.time()),
                 }
             ],
         }
@@ -100,10 +114,15 @@ def execute_background_remediation_task(
             "target_language": target_language or "detecting",
             "execution_status": "PENDING",
             "execution_summary": "Asynchronous remediation pipeline tracking activated...",
+            "pull_request_number": pull_request_number,
         },
     )
 
-    secure_token = refresh_installation_access_token(installation_id)
+    if installation_id == "cli_context_direct" or not installation_id:
+        secure_token = ""
+        print(f"[CLI_MODE] Skipping GitHub auth for local CLI context (project={project_id})")
+    else:
+        secure_token = refresh_installation_access_token(installation_id)
 
     if pull_request_number > 0 and not buggy_file_content:
         gh_headers = {
@@ -150,11 +169,9 @@ def execute_background_remediation_task(
     response.raise_for_status()
 
     result_data = response.json()
-    status_marker = (
-        "SUCCESS"
-        if result_data.get("status") == "AUTONOMOUS_PR_TRIGGERED"
-        else "FAILED"
-    )
+    status_raw = result_data.get("status", "")
+    status_marker = "SUCCESS" if status_raw in ("AUTONOMOUS_FIX_COMMENTED", "AUTONOMOUS_PR_TRIGGERED") else "FAILED"
+    suggestion_posted = status_raw == "AUTONOMOUS_FIX_COMMENTED"
 
     RunAuditLog.objects.update_or_create(
         project_id=project_id,
@@ -163,6 +180,8 @@ def execute_background_remediation_task(
             "target_language": "python",
             "execution_status": status_marker,
             "execution_summary": result_data.get("message", "Processing finalized successfully."),
+            "pull_request_number": pull_request_number,
+            "suggestion_posted": suggestion_posted,
         },
     )
 
@@ -252,24 +271,203 @@ def execute_deployment(
 
 
 @shared_task
-def collect_billing_data():
-    print("[BEAT] collect_billing_data: not yet implemented (Phase 2)")
-    return {"status": "NOT_IMPLEMENTED"}
+def collect_billing_data(records=None):
+    if records:
+        created = 0
+        for rec in records:
+            BillingRecord.objects.create(
+                organization_name=rec.get("organization_name", "default"),
+                provider=rec.get("provider", "aws"),
+                service=rec.get("service", "Unknown"),
+                region=rec.get("region", ""),
+                cost=rec.get("cost", 0),
+                usage_quantity=rec.get("usage_quantity"),
+                usage_unit=rec.get("usage_unit", ""),
+                recorded_at=rec.get("recorded_at"),
+            )
+            created += 1
+        print(f"[BILLING] Ingested {created} billing records")
+        return {"status": "OK", "records_created": created}
+
+    count = BillingRecord.objects.count()
+    print(f"[BEAT] collect_billing_data: {count} records in DB (billing-collector service not configured)")
+    return {"status": "OK", "total_records": count}
 
 
 @shared_task
-def predict_billing_spend():
-    print("[BEAT] predict_billing_spend: not yet implemented (Phase 2)")
-    return {"status": "NOT_IMPLEMENTED"}
+def predict_billing_spend(months_ahead=3):
+    records = BillingRecord.objects.values("provider", "service", "cost", "recorded_at")
+    if not records:
+        print("[FORECAST] No billing records to forecast from")
+        return {"status": "NO_DATA"}
+
+    monthly = {}
+    for r in records:
+        key = (r["provider"], r["service"], r["recorded_at"].strftime("%Y-%m"))
+        monthly[key] = monthly.get(key, 0) + float(r["cost"])
+
+    monthly_by_provider = {}
+    for (provider, service, ym), cost in monthly.items():
+        monthly_by_provider.setdefault(provider, []).append((ym, cost))
+
+    forecasts = []
+    for provider, values in monthly_by_provider.items():
+        values.sort(key=lambda x: x[0])
+        costs = [v[1] for v in values]
+        n = len(costs)
+        if n < 2:
+            continue
+
+        x_mean = (n - 1) / 2.0
+        y_mean = sum(costs) / n
+        num = den = 0
+        for i, c in enumerate(costs):
+            num += (i - x_mean) * (c - y_mean)
+            den += (i - x_mean) ** 2
+        slope = num / den if den else 0
+        intercept = y_mean - slope * x_mean
+
+        residuals = [c - (slope * i + intercept) for i, c in enumerate(costs)]
+        variance = sum(r * r for r in residuals) / max(n - 1, 1)
+        std_err = math.sqrt(variance) if variance > 0 else 0
+
+        last_month = values[-1][0]
+        last_year, last_month_num = int(last_month.split("-")[0]), int(last_month.split("-")[1])
+
+        for m in range(1, months_ahead + 1):
+            future_month_num = last_month_num + m
+            future_year = last_year + (future_month_num - 1) // 12
+            future_month_num = ((future_month_num - 1) % 12) + 1
+            x = n + m - 1
+            predicted = slope * x + intercept
+            ci = 1.96 * std_err * math.sqrt(1 + 1.0 / n + (x - x_mean) ** 2 / den) if den else std_err * 2
+
+            orgs = BillingRecord.objects.filter(provider=provider).values("organization_name").first()
+            org_name = orgs["organization_name"] if orgs else "default"
+
+            forecast, _ = BillingForecast.objects.update_or_create(
+                organization_name=org_name,
+                provider=provider,
+                forecast_month=f"{future_year}-{future_month_num:02d}-01",
+                defaults={
+                    "predicted_cost": round(max(predicted, 0), 6),
+                    "confidence_lower": round(max(predicted - ci, 0), 6),
+                    "confidence_upper": round(predicted + ci, 6),
+                    "model_used": "linear",
+                },
+            )
+            forecasts.append({
+                "provider": provider,
+                "month": f"{future_year}-{future_month_num:02d}",
+                "predicted": round(predicted, 2),
+            })
+
+    print(f"[FORECAST] Generated {len(forecasts)} forecasts across {len(monthly_by_provider)} providers")
+    return {"status": "OK", "forecasts": forecasts}
 
 
 @shared_task
 def check_billing_anomalies():
-    print("[BEAT] check_billing_anomalies: not yet implemented (Phase 2)")
-    return {"status": "NOT_IMPLEMENTED"}
+    from django.db.models import Avg, StdDev, FloatField
+    thirty_days_ago = now().date() - timedelta(days=30)
+    records = BillingRecord.objects.filter(recorded_at__gte=thirty_days_ago)
+    if not records:
+        print("[ANOMALY] No billing records to check")
+        return {"status": "NO_DATA"}
+
+    alerts_created = 0
+    orgs = BillingRecord.objects.values("organization_name").distinct()
+    providers = BillingRecord.objects.values("provider", "service").distinct()
+
+    for org_info in orgs:
+        org_name = org_info["organization_name"]
+        for ps in providers:
+            provider = ps["provider"]
+            service = ps["service"]
+            subset = records.filter(organization_name=org_name, provider=provider, service=service)
+            if not subset:
+                continue
+
+            agg = subset.aggregate(
+                avg_cost=Avg("cost"),
+                std_cost=StdDev("cost"),
+            )
+            avg = float(agg["avg_cost"] or 0)
+            std = float(agg["std_cost"] or 0)
+            if std == 0:
+                continue
+
+            latest = subset.order_by("-recorded_at").first()
+            if not latest:
+                continue
+
+            latest_cost = float(latest.cost)
+            threshold_warning = avg + 2 * std
+            threshold_critical = avg + 3 * std
+
+            if latest_cost > threshold_critical:
+                severity = "critical"
+                threshold = threshold_critical
+                message = (
+                    f"Critical cost spike detected for {provider}/{service}: "
+                    f"${latest_cost:.2f} exceeds 3σ threshold (${threshold:.2f}). "
+                    f"30-day avg: ${avg:.2f}, σ: ${std:.2f}"
+                )
+            elif latest_cost > threshold_warning:
+                severity = "warning"
+                threshold = threshold_warning
+                message = (
+                    f"Cost increase detected for {provider}/{service}: "
+                    f"${latest_cost:.2f} exceeds 2σ threshold (${threshold:.2f}). "
+                    f"30-day avg: ${avg:.2f}, σ: ${std:.2f}"
+                )
+            else:
+                continue
+
+            existing = BillingAlert.objects.filter(
+                organization_name=org_name, provider=provider,
+                service=service, severity=severity,
+                is_acknowledged=False, created_at__date=now().date(),
+            )
+            if existing:
+                continue
+
+            BillingAlert.objects.create(
+                organization_name=org_name,
+                provider=provider,
+                service=service,
+                severity=severity,
+                message=message,
+                current_cost=latest_cost,
+                threshold_cost=threshold,
+            )
+            alerts_created += 1
+
+            User = get_user_model()
+            try:
+                user = User.objects.get(username=org_name)
+                send_billing_alert_email(
+                    user_email=user.email,
+                    org_name=org_name,
+                    provider=provider,
+                    service=service,
+                    severity=severity,
+                    current_cost=latest_cost,
+                    threshold=threshold,
+                )
+            except Exception:
+                pass
+
+    print(f"[ANOMALY] Created {alerts_created} billing alerts")
+    return {"status": "OK", "alerts_created": alerts_created}
 
 
 @shared_task
 def cleanup_old_records():
-    print("[BEAT] cleanup_old_records: not yet implemented (Phase 2)")
-    return {"status": "NOT_IMPLEMENTED"}
+    retention_days = getattr(settings, "AUDIT_RETENTION_DAYS", 90)
+    cutoff = timezone.now() - timedelta(days=retention_days)
+    deleted_count, _ = RunAuditLog.objects.filter(created_at__lt=cutoff).delete()
+    audit_deleted, _ = AuditLogEntry.objects.filter(created_at__lt=cutoff).delete()
+    print(f"[RETENTION] Purged {deleted_count} RunAuditLog records older than {retention_days}d")
+    print(f"[RETENTION] Purged {audit_deleted} AuditLogEntry records older than {retention_days}d")
+    return {"status": "OK", "records_purged": deleted_count, "audit_purged": audit_deleted}

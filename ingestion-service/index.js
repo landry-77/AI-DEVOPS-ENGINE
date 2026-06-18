@@ -111,14 +111,21 @@ function verifyGitHubSignature(req, res, next) {
 }
 
 function containsCodeChanges(commits) {
+    const start = process.hrtime.bigint();
     if (!commits || !Array.isArray(commits)) return true;
     if (commits.length === 0) return true;
     for (const commit of commits) {
         const filesChanged = [...(commit.added || []), ...(commit.modified || [])];
         for (const file of filesChanged) {
-            if (TARGET_EXTENSIONS.some(ext => file.endsWith(ext))) return true;
+            if (TARGET_EXTENSIONS.some(ext => file.endsWith(ext))) {
+                const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
+                console.log(`[Filtration] Evaluated ${filesChanged.length} file(s) in ${elapsed.toFixed(2)}ms — matched ${file}`);
+                return true;
+            }
         }
     }
+    const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
+    console.log(`[Filtration] Evaluated ${commits.reduce((s, c) => s + (c.modified || []).length + (c.added || []).length, 0)} file(s) in ${elapsed.toFixed(2)}ms — no target source files changed.`);
     return false;
 }
 
@@ -126,10 +133,9 @@ app.post('/webhooks/github', verifyGitHubSignature, (req, res) => {
     const payload = req.body;
     const event = req.headers['x-github-event'];
 
-    if (event === 'pull_request' && (payload.action === 'opened' || payload.action === 'synchronize')) {
+    if (event === 'pull_request' && payload.action === 'opened') {
         const commits = payload.commits || [];
         if (!containsCodeChanges(commits)) {
-            console.log(`[Filtration] Skipped PR #${payload.pull_request.number} — no target source files changed.`);
             return res.status(200).json({ status: "SKIPPED", message: "No operational source code changes detected." });
         }
         const taskArgs = [

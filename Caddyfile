@@ -7,6 +7,7 @@
     reverse_proxy /api/v1/billing/stripe-webhook/ django-dashboard:8000
     reverse_proxy /api/v1/cli/trigger-fix django-dashboard:8000
     reverse_proxy /api/v1/deployments/* django-dashboard:8000
+    reverse_proxy /api/v1/billing/* django-dashboard:8000
 
     @internal_apis {
         path /api/v1/meter-event/*

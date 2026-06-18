@@ -1,127 +1,180 @@
-# Air-Gapped Multi-Language AI DevOps Engine
+# AI DevOps Engine
 
-[![License](https://shields.io)](https://opensource.org)
-[![Python](https://shields.io)](https://python.org)
-[![Node.js](https://shields.io)](https://nodejs.org)
-[![Docker](https://shields.io)](https://docker.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![Node.js 18+](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org)
+[![Docker](https://img.shields.io/badge/Docker-required-2496ED.svg)](https://docker.com)
 
-An autonomous, zero-data-retention AI DevOps pipeline designed to safely ingest, sanitize, patch, and verify full-stack **Python** and **JavaScript/TypeScript** codebases.
+An autonomous, zero-data-retention AI DevOps pipeline that ingests GitHub webhooks, constructs code patches via LLM, runs them in air-gapped Docker sandboxes (Pytest/Jest), and commits validated fixes directly to Pull Requests — all self-hosted with one `docker compose` command.
 
-This engine solves a critical enterprise vulnerability: running or streaming untrusted, AI-generated code patches without exposing proprietary code to public LLM datasets or executing unverified scripts on host infrastructure.
-
----
-
-## System Architecture Blueprint
-
-The framework implements a strict **separation of concerns** across an isolated microservice topology, optimized to run concurrently on local resource-constrained CPU/GPU environments:
-
-```
-GITHUB UNIVERSE (Webhooks & REST API)
-         │
-         │
-┌────────┴────────────────────────┐
-│ (Webhook Event)                 │ (OAuth Token / PR Action)
-│                                 │
-▼                                 ▼
-┌─────────────────────┐           ┌─────────────────────┐
-│   Node.js Gateway   │───────►   │   FastAPI Brain     │
-│ (Ingestion Layer)   │ Internal  │  (Sandbox Engine)   │
-└─────────────────────┘ Transit   └──────────┬──────────┘
-         │                                    │
-(Verify Origin)                     (Mounts Ephemeral VFS)
-         │                                    │
-         ▼                                    ▼
-┌─────────────────────┐           ┌─────────────────────┐
-│   Django Core DB    │           │ Docker Engine Host  │
-│ (Metadata Only/Auth)│           │ (Pre-baked Images)  │
-└─────────────────────┘           └──────────┬──────────┘
-                                              │
-                    ┌─────────────────────────┴─────────────────────────┐
-                    ▼ (Python Strategy)       ▼ (JavaScript Strategy)   ▼
-         ┌─────────────────────┐    ┌─────────────────────┐
-         │ local-pytest-runner │    │  local-jest-runner  │
-         │ (Isolated Container)│    │ (Isolated Container)│
-         └─────────────────────┘    └─────────────────────┘
-```
+- **No SaaS fees** — you only pay the AI provider directly for tokens used
+- **Zero data retention** — code scrubbed in memory, destroyed after inference
+- **Air-gapped sandbox** — patches run in network-isolated, resource-throttled containers
+- **Multi-tenant** — PostgreSQL Row-Level Security isolates tenants at the database engine level
 
 ---
 
-## Core Enterprise Security Vectors
-
-### 1. Zero-Data-Retention (ZDR) & Data Minimization
-- **Zero Code Persistence:** The primary database state layer (PostgreSQL) is strictly barred from storing customer source code trees or branch diff hashes. It logs only operational indexing metadata.
-- **ZDR Inference Protocol:** Outbound AI completions utilize an LLM abstraction router mapping exclusively to providers enforcing legal Zero-Data-Retention SLAs (AWS Bedrock, Azure AI, Google Vertex). Data is processed in volatile memory, excluded from training, and destroyed instantly.
-
-### 2. Local In-Memory Secret Scrubbing
-An integrated high-speed regex profiling middleware scans code payloads in volatile memory, masking sensitive variables (AWS keys, Stripe tokens, GitHub tokens, database credentials) prior to transit, ensuring compliance perimeters are never crossed.
-
-### 3. Air-Gapped Sandbox Isolation
-Untrusted, AI-generated code is never run on primary server hardware. It is mounted **Read-Only (`mode: ro`)** into ephemeral, pre-baked Docker containers (`local-pytest-sandbox` and `local-jest-sandbox`).
-- Networks are entirely air-gapped (no public transit).
-- Resource throttles are strictly enforced per run: **Max 512MB RAM** and **Max 2 CPU logical cores** to eliminate billing runway loops or script-level DoS attacks.
-
-### 4. Database Multi-Tenant Separation via PostgreSQL RLS
-Bypassing vulnerable application-level filters (`.filter()`), data separation is executed directly within the storage engine using **PostgreSQL Row-Level Security (RLS)**. Django middleware sets database session configuration states on every transaction, making it physically impossible for tenant records to cross perimeters.
-
----
-
-## Microservice Directory Structure
-
-```
-├── ingestion-service/    # High-concurrency Node.js Express incoming webhook edge gateway
-├── core-brain/           # FastAPI automation router, LiteLLM orchestration, Docker engine client
-├── django-dashboard/     # Django management SaaS app, encrypted credentials, async Celery worker queues
-├── sandbox-env/          # Base configurations for pre-baked immutable test runners (Pytest / Jest)
-├── infra/
-│   ├── patch-bot.sh           # CLI client for developer terminals
-│   ├── cleanup-sandbox.sh     # Automated container leak cleanup script
-│   └── backup_database.sh     # Nightly S3 database backup script
-├── docker-compose.yml    # Production orchestration
-├── docker-compose.local.yml  # Local development stack
-├── docker-compose.web.yml    # Web worker profile (scaled)
-├── docker-compose.worker.yml # Compute worker profile (scaled)
-├── Caddyfile                  # Production reverse proxy with auto TLS
-├── SECURITY_WHITEPAPER.md     # SOC 2 / ISO 27001 alignment documentation
-└── ONBOARDING_CHECKLIST.md    # Customer installation blueprint
-```
-
----
-
-## Quickstart Local Development Deployment
+## Quickstart (from zero to running in ~10 minutes)
 
 ### Prerequisites
-- Docker & Docker Compose
-- Node.js v18+ & Python 3.11+
 
-### 1. Pre-Bake Testing Container Images Locally
+- Docker & Docker Compose (v2+)
+- Node.js 18+
+- Python 3.11+
+- [OpenRouter API key](https://openrouter.ai/keys) (free tier available)
+- [ngrok](https://ngrok.com/download) (free tier — exposes local webhook to GitHub)
+
+### 1. Clone & Configure
 
 ```bash
-docker build -t local-pytest-sandbox -f ./sandbox-env/Dockerfile.python ./sandbox-env/
-docker build -t local-jest-sandbox -f ./sandbox-env/Dockerfile.javascript ./sandbox-env/
+git clone https://github.com/your-username/ai-devops-engine.git
+cd ai-devops-engine
+cp .env.example .env
 ```
 
-### 2. Launch the Microservice Stack
+Create the `certs/` directory and place the `.pem` file there:
+
+```bash
+mkdir -p certs
+# Move the downloaded .pem file into certs/
+mv ~/Downloads/your-app-private-key.pem certs/github_app.pem
+```
+
+Edit `.env` with your keys:
+
+| Variable | What to put | Required |
+|----------|-------------|----------|
+| `OPENROUTER_API_KEY` | Your OpenRouter API key | Yes |
+| `OPENROUTER_MODEL` | Model name (e.g. `openai/gpt-4o-mini`, `openrouter/qwen/qwen-2.5-coder-32b-instruct`) | No |
+| `GITHUB_APP_IDENTIFIER` | GitHub App ID number (from app settings page) | Yes |
+| `GITHUB_WEBHOOK_SECRET` | Webhook secret you set in GitHub App settings | Yes |
+| `DJANGO_SECRET_KEY` | Run `python -c "import secrets; print(secrets.token_urlsafe(50))"` | Yes |
+| `FERNET_KEY` | Run `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` | Yes |
+| `SLACK_ALERTS_WEBHOOK_URL` | Slack webhook URL for crash alerts | No |
+| `SLACK_ANALYSIS_WEBHOOK_URL` | Slack webhook URL for analysis results | No |
+| `PAYMENT_GATEWAY` | `stripe` or `manual` | No |
+| `AUDIT_RETENTION_DAYS` | How long to keep audit logs (default: 90) | No |
+
+> **Note:** `certs/github_app.pem` is the default path the stack expects. The `CERTS_PATH=./certs` in `.env` maps this directory into every container at `/app/certs`.
+
+### 2. Create a GitHub App
+
+1. Go to **GitHub Settings → Developer settings → GitHub Apps → New GitHub App**
+2. Set these values:
+   - **GitHub App name:** anything (e.g. `ai-devops-bot`)
+   - **Homepage URL:** `http://localhost:3000`
+   - **Webhook URL:** your ngrok URL from step 5
+   - **Webhook secret:** a random string you choose — put this in `.env` as `GITHUB_WEBHOOK_SECRET`
+   - **Repository permissions:** `Contents: Write`, `Pull requests: Read & Write`, `Checks: Write`, `Metadata: Read`
+   - **Subscribe to events:** `Pull request`, `Push`
+3. Click **Create GitHub App**
+4. On the app page: **Generate a private key** → download the `.pem` file → save it as `certs/github_app.pem` in your project root
+5. Copy the **App ID** number from the top of the page → put it in `.env` as `GITHUB_APP_IDENTIFIER`
+6. **Install the app** on a repo → click **Install App** in the sidebar → select a repo
+
+### 3. Pre-Bake Sandbox Images
+
+```bash
+docker build -t local-pytest-sandbox -f sandbox-env/Dockerfile.python sandbox-env/
+docker build -t local-jest-sandbox -f sandbox-env/Dockerfile.javascript sandbox-env/
+```
+
+### 4. Launch the Stack
 
 ```bash
 docker compose -f docker-compose.local.yml up --build -d
 ```
 
-### 3. Trigger a Local Simulated Webhook Run
+### 5. Expose Webhook Endpoint
 
 ```bash
-curl -X POST http://localhost/webhooks/github \
+ngrok http http://localhost:3000
+```
+
+Copy the `https://<your-id>.ngrok-free.app` URL. Go back to your GitHub App settings and set the **Webhook URL** to `https://<your-id>.ngrok-free.app/webhooks/github`.
+
+### 6. Trigger a PR — Watch It Run
+
+Open any Pull Request on the repo you installed the app on. The engine will:
+1. Receive the webhook → parse the diff
+2. Send changed code to OpenRouter (with `data_collection: deny`)
+3. Generate a patch → mount it in an air-gapped sandbox
+4. Run `pytest` or `jest` — on pass, commit the fix to the PR branch
+5. Log the result in the Django dashboard at `http://localhost:8000`
+
+You can also test with a manual curl (requires `openssl`):
+
+```bash
+WEBHOOK_SECRET="${GITHUB_WEBHOOK_SECRET?}"
+
+payload='{"action":"opened","pull_request":{"number":1},"repository":{"id":101,"full_name":"local-org/test-repo","clone_url":"local_vfs"},"installation":{"id":202}}'
+
+sig=$(printf '%s' "$payload" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | awk '{print $NF}')
+
+curl -X POST http://localhost:3000/webhooks/github \
   -H "Content-Type: application/json" \
-  -H "X-Hub-Signature-256: sha256=mock_signature_field" \
-  -d '{
-    "action": "opened",
-    "pull_request": { "number": 1 },
-    "repository": { "id": 101, "full_name": "local-org/test-repo", "clone_url": "local_vfs" },
-    "installation": { "id": 202 }
-  }'
+  -H "x-github-event: pull_request" \
+  -H "x-hub-signature-256: sha256=$sig" \
+  -d "$payload"
+```
+
+### 7. (Optional) Use the CLI
+
+```bash
+# Install (one-time)
+chmod +x infra/patch-bot.sh
+alias patch-bot=./infra/patch-bot.sh
+
+# Fix a file
+patch-bot my_app/main.py "pagination breaks when page number exceeds total pages"
 ```
 
 ---
 
-## Business Metrics & ROI
+## Architecture
 
-This system decreases active engineering hours spent on localized bug remediation by automating data parsing, patch generation, and sandboxed validation loops. Development teams scale release velocity safely while reducing dependency overhead and preserving total infrastructure security.
+```
+GitHub Repo ──→ ngrok ──→ Ingestion Gateway (Node.js, port 3000)
+                              │
+                              ▼
+                        Redis Queue (Celery)
+                              │
+                    ┌─────────┴─────────┐
+                    ▼                     ▼
+            Celery Worker           Celery Beat
+                    │                     │
+                    ▼                     ▼
+          FastAPI Brain (AI Engine)   Django Dashboard (UI)
+                    │                     │         │
+                    ▼                     ▼         ▼
+         Air-Gapped Sandbox         PostgreSQL  Billing Collector
+         (Docker, no network)       (ZDR audit)  (Stripe / Manual)
+                    │
+                    ▼
+         GitHub Contents API
+         (commit fix to PR branch)
+```
+
+### Services
+
+| Service | Technology | Role |
+|---------|-----------|------|
+| `ingestion-service` | Node.js + Express | GitHub webhook receiver, path filtering, task queuing |
+| `core-brain` | FastAPI + Celery | AI orchestration, secret scrubbing, Docker sandbox control |
+| `django-dashboard` | Django 6 + Daphne ASGI | Web UI, audit logs, multi-tenant admin, billing |
+| `sandbox-env` | Docker (air-gapped) | Pre-baked Pytest/Jest images, no network, 512MB RAM cap |
+| `billing-collector` | Python | Cost forecasting, usage metering, AWS/GCP poll |
+| `redis-broker` | Redis 7 | Celery message queue + result backend |
+
+---
+
+## Security
+
+| Layer | Mechanism |
+|-------|-----------|
+| Code storage | **Zero persistence** — PostgreSQL stores only operational metadata, never source code |
+| LLM privacy | **`data_collection: deny`** on every OpenRouter request — legally blocks training on your code |
+| Secret scrubbing | **In-memory regex** — AWS keys, GH tokens, DB credentials masked before transit |
+| Patch execution | **Air-gapped Docker** — no network access, 512MB RAM / 2 CPU hard limit, no host FS mount |
+| Tenant isolation | **PostgreSQL RLS** — database-enforced row separation, bypasses Django `.filter()` |
+| Container leaks | **Background cron** — auto-prunes orphaned sandbox containers on execution freeze |

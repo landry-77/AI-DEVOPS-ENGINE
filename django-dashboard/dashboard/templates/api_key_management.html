@@ -1,80 +1,76 @@
 {% extends "base.html" %}
+{% block title %}API Keys — AI DevOps{% endblock %}
 {% block content %}
-<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10 text-slate-100 bg-slate-950 min-h-screen">
-    <div class="md:flex md:items-center md:justify-between border-b border-slate-800 pb-6 mb-8">
+<div class="max-w-7xl mx-auto">
+    <div class="md:flex md:items-center md:justify-between border-b border-theme pb-6 mb-8">
         <div class="min-w-0 flex-1">
-            <h2 class="text-2xl font-bold leading-7 text-white sm:truncate sm:text-3xl tracking-tight">Developer Access Tokens</h2>
-            <p class="mt-2 text-sm text-slate-400">Deploy API credentials securely to authenticate automated terminal runs or CI/CD pipelines.</p>
+            <h1 class="text-2xl font-bold tracking-tight text-theme-primary">Developer Access Tokens</h1>
+            <p class="mt-1 text-sm text-theme-secondary">API credentials for CLI and CI/CD pipeline authentication.</p>
         </div>
-        <div class="mt-4 flex md:ml-4 md:mt-0">
+        <div class="mt-4 md:ml-4 md:mt-0">
             <form action="{% url 'generate_key' %}" method="POST">
                 {% csrf_token %}
-                <button type="submit" class="ml-3 inline-flex items-center rounded-md bg-cyan-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cyan-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 transition-all">
-                    Generate New Secret Key
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700 transition-all inline-flex items-center gap-2">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                    Generate New Key
                 </button>
             </form>
         </div>
     </div>
 
     {% if raw_key_display %}
-    <div class="rounded-md bg-amber-500/10 p-4 border border-amber-500/20 mb-8">
-        <div class="flex">
-            <div class="ml-3">
-                <h3 class="text-sm font-medium text-amber-400">Secure Your Token Coordinates Immediately</h3>
-                <p class="mt-2 text-xs text-amber-500/80 leading-relaxed">
-                    For compliance security, this secret token is encrypted via SHA-256 hashes inside our platform database.
-                    We cannot present it to you again. Copy it safely now:
-                </p>
-                <div class="mt-4 bg-slate-900 p-3 rounded font-mono text-sm border border-slate-800 flex items-center justify-between">
-                    <span class="text-white select-all">{{ raw_key_display }}</span>
+    <div class="rounded-xl bg-amber-500/10 border border-amber-500/20 p-5 mb-8">
+        <div class="flex gap-3">
+            <svg class="h-5 w-5 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+            <div>
+                <h3 class="text-sm font-semibold text-amber-400">Save This Key — It Won't Be Shown Again</h3>
+                <p class="mt-1 text-xs text-amber-500/80 leading-relaxed">This token is hashed in our database. Copy it now:</p>
+                <div class="mt-3 bg-theme-primary rounded-lg p-3 font-mono text-sm border border-theme flex items-center justify-between gap-3">
+                    <span class="text-theme-primary select-all break-all">{{ raw_key_display }}</span>
                 </div>
             </div>
         </div>
     </div>
     {% endif %}
 
-    <div class="bg-slate-900/40 rounded-xl border border-slate-800 overflow-hidden backdrop-blur">
-        <table class="min-w-full divide-y divide-slate-800 text-left text-sm">
-            <thead class="bg-slate-900/60 font-semibold text-slate-300">
+    <div class="rounded-xl border border-theme bg-theme-card overflow-hidden">
+        <table class="min-w-full divide-y divide-theme text-sm">
+            <thead class="bg-theme-secondary">
                 <tr>
-                    <th scope="col" class="px-6 py-4">Key Identifier</th>
-                    <th scope="col" class="px-6 py-4">Created On</th>
-                    <th scope="col" class="px-6 py-4">System Operational Status</th>
-                    <th scope="col" class="px-6 py-4 text-right">Actions</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Key</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Created</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-4 text-right text-xs font-semibold text-theme-secondary uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-800/60 text-slate-400">
+            <tbody class="divide-y divide-theme">
                 {% for key in api_keys %}
-                <tr class="hover:bg-slate-900/20 transition-colors">
-                    <td class="px-6 py-4 font-mono text-white flex items-center gap-x-2">
-                        <span>{{ key.prefix }}••••••••••••••••</span>
-                    </td>
-                    <td class="px-6 py-4">{{ key.created_at|date:"M d, Y H:i" }}</td>
+                <tr class="hover:bg-theme-secondary/50 transition-colors">
+                    <td class="px-6 py-4 font-mono text-theme-primary">{{ key.prefix }}••••••••••••••••</td>
+                    <td class="px-6 py-4 text-theme-secondary">{{ key.created_at|date:"M d, Y H:i" }}</td>
                     <td class="px-6 py-4">
                         {% if key.is_active %}
-                        <span class="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400 ring-1 ring-inset ring-emerald-500/20">Active Running</span>
+                        <span class="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/20">Active</span>
                         {% else %}
-                        <span class="inline-flex items-center rounded-full bg-slate-500/10 px-2.5 py-0.5 text-xs font-medium text-slate-400 ring-1 ring-inset ring-slate-500/20">Revoked Expired</span>
+                        <span class="inline-flex items-center rounded-full bg-slate-500/10 px-2.5 py-1 text-xs font-medium text-slate-400 ring-1 ring-slate-500/20">Revoked</span>
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 text-right">
                         {% if key.is_active %}
-                        <form action="{% url 'revoke_key' key.id %}" method="POST" onsubmit="return confirm('Are you sure you want to permanently revoke this access token? All linked active pipelines will disconnect immediately.');">
+                        <form action="{% url 'revoke_key' key.id %}" method="POST" onsubmit="return confirm('Revoke this key? All pipelines using it will disconnect.');">
                             {% csrf_token %}
-                            <button type="submit" class="text-xs font-medium text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded px-2.5 py-1 bg-rose-500/5 hover:bg-rose-500/10 transition-all">
-                                Revoke Key Access
+                            <button type="submit" class="text-xs font-medium text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded-lg px-3 py-1.5 bg-rose-500/5 hover:bg-rose-500/10 transition-all">
+                                Revoke
                             </button>
                         </form>
                         {% else %}
-                        <span class="text-xs font-mono text-slate-600 select-none italic">Inert Signature</span>
+                        <span class="text-xs font-mono text-slate-600 italic">Inactive</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="px-6 py-12 text-center text-slate-500 font-medium">
-                        No developer API keys registered to this corporate workspace account yet.
-                    </td>
+                    <td colspan="4" class="px-6 py-12 text-center text-theme-secondary">No API keys registered yet.</td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Integrations — AI DevOps{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-theme-primary">GitHub Integrations</h1>
+            <p class="mt-1 text-sm text-theme-secondary">Manage connected GitHub repositories and App installations.</p>
+        </div>
+        <a href="https://github.com/apps/ai-devops-local-develop/installations/new" target="_blank" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors inline-flex items-center gap-2">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Install GitHub App
+        </a>
+    </div>
+
+    <div class="rounded-xl border border-theme bg-theme-card overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-theme text-sm">
+                <thead class="bg-theme-secondary">
+                    <tr>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Organization</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Installation ID</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Status</th>
+                        <th class="px-5 py-3.5 text-left text-xs font-semibold text-theme-secondary uppercase tracking-wider">Connected Since</th>
+                    </tr>
+                </thead>
+                <tbody id="integrations-body">
+                    {% for integration in integrations %}
+                    <tr class="hover:bg-theme-secondary/50 transition-colors">
+                        <td class="px-5 py-4 font-medium text-theme-primary">{{ integration.organization_name }}</td>
+                        <td class="px-5 py-4 font-mono text-sm text-theme-secondary">{{ integration.installation_id }}</td>
+                        <td class="px-5 py-4">
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/20">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                                Active
+                            </span>
+                        </td>
+                        <td class="px-5 py-4 text-sm text-theme-secondary">{{ integration.registered_at|date:"M d, Y H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-5 py-12 text-center text-theme-secondary">
+                            <div class="flex flex-col items-center gap-3">
+                                <svg class="h-10 w-10 text-theme-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                <p class="text-sm font-medium">No GitHub integrations configured.</p>
+                                <a href="https://github.com/apps/ai-devops-local-develop/installations/new" target="_blank" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors">Install GitHub App</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-8 rounded-xl border border-theme bg-theme-card p-6">
+        <h2 class="text-lg font-bold text-theme-primary mb-4">How It Works</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="flex gap-4">
+                <div class="h-10 w-10 rounded-lg bg-brand-600/10 flex items-center justify-center shrink-0">
+                    <svg class="h-5 w-5 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-theme-primary">1. Install the App</h3>
+                    <p class="mt-1 text-xs text-theme-secondary leading-relaxed">Click "Install GitHub App" above and select the repositories you want the bot to monitor.</p>
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <div class="h-10 w-10 rounded-lg bg-brand-600/10 flex items-center justify-center shrink-0">
+                    <svg class="h-5 w-5 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-theme-primary">2. Open a PR</h3>
+                    <p class="mt-1 text-xs text-theme-secondary leading-relaxed">Push a buggy branch and open a pull request. The bot detects issues automatically.</p>
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <div class="h-10 w-10 rounded-lg bg-brand-600/10 flex items-center justify-center shrink-0">
+                    <svg class="h-5 w-5 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div>
+                    <h3 class="text-sm font-semibold text-theme-primary">3. Review & Apply</h3>
+                    <p class="mt-1 text-xs text-theme-secondary leading-relaxed">The bot posts a fix with a "Commit suggestion" button. Review and merge.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

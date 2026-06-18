@@ -21,10 +21,15 @@ def generate_autonomous_patch(buggy_code: str, bug_description: str, language: s
 You must analyze the provided code block and the bug description, then provide a fix.
 You must also generate a complete, executable unit test suite to validate your patch.
 
+Your response must contain ONLY a single JSON object with exactly three keys.
+Do NOT include multiple versions, multiple files, or any extra content.
+
 CRITICAL: The test suite MUST import from '{module_name}' (the module name derived from the target file).
 CRITICAL: Return ONLY a raw JSON object. Do not wrap it in markdown blocks or code fences.
-Schema:
-{{"reasoning": "Brief explanation", "patched_code": "full corrected file", "test_suite": "complete test file using {framework}"}}"""
+CRITICAL: "patched_code" must be a single string containing ONLY the full corrected file — nothing else, no duplicates.
+
+Required schema:
+{{"reasoning": "Brief explanation", "patched_code": "full corrected file content as a single string", "test_suite": "complete test file using {framework}"}}"""
 
     user_prompt = f"Target Language: {language}\nBug Description: {bug_description}\n\nBuggy Source Code File:\n{buggy_code}"
 
@@ -41,6 +46,7 @@ Schema:
                 "model": MODEL,
                 "max_tokens": 8192,
                 "temperature": 0.1,
+                "data_collection": "deny",
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -52,10 +58,52 @@ Schema:
         data = response.json()
         raw_content = data["choices"][0]["message"]["content"].strip()
 
+        print(f"[AI_RAW] Full model response ({len(raw_content)} chars):")
+        print(f"[AI_RAW] ---START---")
+        print(raw_content)
+        print(f"[AI_RAW] ---END---")
+
         if raw_content.startswith("```"):
             raw_content = raw_content.split("\n", 1)[1].rsplit("\n", 1)[0]
 
-        return json.loads(raw_content)
+        result = json.loads(raw_content)
+
+        for key in ("patched_code", "test_suite", "reasoning"):
+            val = result.get(key)
+            if isinstance(val, list):
+                result[key] = val[-1]
+            elif not isinstance(val, str):
+                result[key] = str(val) if val else ""
+
+        patched = result.get("patched_code", "")
+        seen_funcs = set()
+        deduped_lines = []
+        current_func_lines = []
+        in_func = False
+        for line in patched.split("\n"):
+            if line.startswith("def ") or line.startswith("class "):
+                func_sig = line.strip()
+                if func_sig in seen_funcs:
+                    break
+                seen_funcs.add(func_sig)
+                if current_func_lines:
+                    deduped_lines.extend(current_func_lines)
+                current_func_lines = [line]
+                in_func = True
+            elif in_func:
+                if line.strip() == "" and any(l.strip() for l in current_func_lines):
+                    current_func_lines.append(line)
+                elif line.strip() != "":
+                    current_func_lines.append(line)
+                else:
+                    current_func_lines.append(line)
+            else:
+                deduped_lines.append(line)
+        if current_func_lines:
+            deduped_lines.extend(current_func_lines)
+        result["patched_code"] = "\n".join(deduped_lines).strip()
+
+        return result
 
     except Exception as e:
         print(f"Autonomous AI generation breakdown: {e}")

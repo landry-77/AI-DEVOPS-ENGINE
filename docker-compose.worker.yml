@@ -1,28 +1,50 @@
-version: '3.8'
 
 services:
   celery-worker:
-    image: yourdockerhub/django-app:latest
-    command: celery -A config worker --loglevel=info --concurrency=4
+    image: ${DJANGO_IMAGE:-yourdockerhub/django-app:latest}
+    container_name: async-celery-worker
+    command: celery -A config worker --loglevel=${CELERY_LOG_LEVEL:-info} --concurrency=${CELERY_CONCURRENCY:-4}
     environment:
-      - DATABASE_URL=postgres://admin:pwd@your-managed-db-ip:5432/db
-      - CELERY_BROKER_URL=redis://your-dedicated-redis-broker-ip:6379/0
-      - CELERY_RESULT_BACKEND=redis://your-dedicated-redis-broker-ip:6379/0
-      - GITHUB_APP_IDENTIFIER=${GITHUB_APP_IDENTIFIER}
-      - GITHUB_APP_PRIVATE_KEY_PATH=/app/certs/github_app.pem
-      - SLACK_ALERTS_WEBHOOK_URL=${SLACK_ALERTS_WEBHOOK_URL}
-      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
-      - FERNET_KEY=${FERNET_KEY}
+      - DATABASE_URL=postgres://${POSTGRES_USER?}:${POSTGRES_PASSWORD?}@${POSTGRES_HOST?}:${POSTGRES_PORT:-5432}/${POSTGRES_DB?}
+      - CELERY_BROKER_URL=redis://${REDIS_HOST?}:${REDIS_PORT:-6379}/${REDIS_DB:-0}
+      - CELERY_RESULT_BACKEND=redis://${REDIS_HOST?}:${REDIS_PORT:-6379}/${REDIS_DB:-0}
+      - GITHUB_APP_IDENTIFIER=${GITHUB_APP_IDENTIFIER?}
+      - GITHUB_APP_PRIVATE_KEY_PATH=${GITHUB_APP_PRIVATE_KEY_PATH:-/app/certs/github_app.pem}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET?}
+      - FERNET_KEY=${FERNET_KEY?}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY?}
+      - AUDIT_RETENTION_DAYS=${AUDIT_RETENTION_DAYS:-90}
+      - PAYMENT_GATEWAY=${PAYMENT_GATEWAY:-stripe}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SIGNING_SECRET=${STRIPE_WEBHOOK_SIGNING_SECRET:-}
+      - STRIPE_ENTERPRISE_PRICE_ID=${STRIPE_ENTERPRISE_PRICE_ID:-price_placeholder}
+      - EMAIL_BACKEND=${EMAIL_BACKEND:-console}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY:-}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST:-smtp.gmail.com}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-587}
+      - EMAIL_SMTP_TLS=${EMAIL_SMTP_TLS:-true}
+      - EMAIL_SMTP_USER=${EMAIL_SMTP_USER:-}
+      - EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD:-}
+      - SLACK_ALERTS_WEBHOOK_URL=${SLACK_ALERTS_WEBHOOK_URL:-}
     volumes:
-      - ./certs:/app/certs:ro
+      - ${CERTS_PATH:-./certs}:/app/certs:ro
     networks:
       - ai-devops-network
 
   fastapi-brain:
-    image: yourdockerhub/fastapi-brain:latest
+    image: ${FASTAPI_IMAGE:-yourdockerhub/fastapi-brain:latest}
+    container_name: core-fastapi-brain
     environment:
-      - LITELLM_MODEL=${LITELLM_MODEL}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENROUTER_API_KEY?}
+      - OPENAI_MODEL=${OPENROUTER_MODEL:-gpt-4o-mini}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY?}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
+      - HOST=0.0.0.0
+      - PORT=8010
+      - DATA_COLLECTION=${DATA_COLLECTION:-deny}
+      - SLACK_ANALYSIS_WEBHOOK_URL=${SLACK_ANALYSIS_WEBHOOK_URL:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:

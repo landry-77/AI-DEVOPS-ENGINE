@@ -35,7 +35,7 @@ def _build_pr_comment(reasoning: str, language: str, patched_code: str, target_f
 
 ---
 
-_🤖 AI-generated fix validated in isolated sandbox container. Check the **Files changed** tab for the commit suggestion._
+_🤖 AI-generated fix validated in isolated sandbox container. Review the proposed code above and apply it to your branch._
 """
 
 
@@ -284,21 +284,7 @@ async def process_autonomous_remediation(payload: IngestionPayload):
                             test_logs=execution_logs,
                         ),
                     )
-                    pr_info = requests.get(
-                        f"https://api.github.com/repos/{payload.repository_full_name}/pulls/{payload.pull_request_number}",
-                        headers={"Authorization": f"token {payload.installation_access_token}", "Accept": "application/vnd.github+json"},
-                        timeout=15,
-                    ).json()
-                    pr_head = pr_info.get("head", {}).get("ref", "")
-
-                    if pr_head:
-                        handler.commit_fix_to_pr_branch(
-                            pull_request_number=payload.pull_request_number,
-                            pr_head_branch=pr_head,
-                            file_path=target_file,
-                            patched_code=ai_solution["patched_code"],
-                        )
-                    comment_result = "Fix committed to PR branch."
+                    comment_result = "Fix posted as PR comment for review."
                 else:
                     comment_result = "No token provided — skipping."
 

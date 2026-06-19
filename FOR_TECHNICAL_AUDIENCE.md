@@ -1,11 +1,3 @@
-# AI DevOps Engine — Technical Deep Dive
-
-**Target Market:** US-based engineering teams, CTOs, VP Engineering at growth-stage startups and mid-market tech companies.  
-**Value Driver:** Eliminate manual code review overhead, reduce production incidents, and instrument engineering cost intelligence — all self-hosted with zero data exfiltration.  
-**Open Source:** Fork it, configure it, point it at your repos. Every variable is in `.env`.
-
----
-
 ## Architecture Overview
 
 ```
@@ -55,7 +47,7 @@ This runs entirely on your machine. No cloud. No monthly bill. Connect any GitHu
 This is **open source**. You fork it, clone it, and configure it for YOUR stack.
 
 ```bash
-git clone https://github.com/hirwalandry/ai-devops-engine
+git clone https://github.com/landry-77/AI-DEVOPS-ENGINE.git
 cd ai-devops-engine
 
 # Everything lives in one env file:
@@ -420,4 +412,4 @@ Simplest path for SMBs. One-click deploy from the Docker Compose file via the Ap
 
 ---
 
-[GitHub Repository](https://github.com/hirwalandry/ai-devops-engine)
+[GitHub Repository](https://github.com/landry-77/AI-DEVOPS-ENGINE.git)

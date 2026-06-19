@@ -88,7 +88,7 @@
                 <span class="gradient-text">Fix Suggested.</span> You Approve.
             </h1>
             <p class="mt-6 text-lg max-w-2xl mx-auto" style="color:var(--text-muted)">
-                An intelligent CI/CD copilot that detects bugs in pull requests, generates fixes automatically, validates them in a sandbox, and presents a one-click "Commit suggestion" button for you to review and apply.
+                An intelligent CI/CD copilot that detects bugs in pull requests, generates fixes automatically, validates them in a sandbox, and posts the proposed fix as a PR comment for you to review and apply.
             </p>
             <div class="mt-10 flex items-center justify-center gap-4">
                 {% if user.is_authenticated %}
@@ -134,7 +134,7 @@
                         <svg class="h-5 w-5" style="color:var(--accent)" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                     </div>
                     <h3 class="font-semibold mb-2">4. You Approve</h3>
-                    <p class="text-sm text-muted">A "Commit suggestion" button appears on the PR. Review, click, and merge.</p>
+                    <p class="text-sm text-muted">The bot posts the fix as a PR comment with the exact code change. Review and apply it.</p>
                 </div>
             </div>
         </div>
@@ -148,8 +148,8 @@
             </div>
             <div class="grid md:grid-cols-3 gap-6">
                 <div class="p-6 rounded-xl border border-theme">
-                    <h3 class="font-semibold mb-2">Pull-Based Workflow</h3>
-                    <p class="text-sm text-muted">We never push to your branch. Every fix is a suggestion — you stay in control of what gets committed.</p>
+                    <h3 class="font-semibold mb-2">Review-Based Workflow</h3>
+                    <p class="text-sm text-muted">Every fix is posted as a PR comment with sandbox results — you review the diff and merge when ready.</p>
                 </div>
                 <div class="p-6 rounded-xl border border-theme">
                     <h3 class="font-semibold mb-2">Sandboxed Validation</h3>
@@ -191,7 +191,7 @@
         <div class="max-w-6xl mx-auto flex items-center justify-between text-sm text-muted">
             <span>&copy; 2026 AI DevOps Engine</span>
             <div class="flex gap-6">
-                <a href="https://github.com/hirwalandry/ai-devops-engine" class="hover:underline">GitHub</a>
+                <a href="https://github.com/landry-77/AI-DEVOPS-ENGINE.git" class="hover:underline">GitHub</a>
             </div>
         </div>
     </footer>

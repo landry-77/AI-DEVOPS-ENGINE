@@ -132,4 +132,4 @@ This tool saves engineering hours directly. For a 5-person team:
 
 **Open source. Self-hosted. Zero cloud dependency. You own the stack, the data, and the pricing.**
 
-[GitHub Repository](https://github.com/hirwalandry/ai-devops-engine)
+[GitHub Repository](https://github.com/landry-77/AI-DEVOPS-ENGINE.git)

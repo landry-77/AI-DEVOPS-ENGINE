@@ -99,7 +99,7 @@ Open any Pull Request on the repo you installed the app on. The engine will:
 1. Receive the webhook → parse the diff
 2. Send changed code to OpenRouter (with `data_collection: deny`)
 3. Generate a patch → mount it in an air-gapped sandbox
-4. Run `pytest` or `jest` — on pass, commit the fix to the PR branch
+4. Run `pytest` or `jest` — on pass, post the fix as a PR comment for review
 5. Log the result in the Django dashboard at `http://localhost:8000`
 
 You can also test with a manual curl (requires `openssl`):
@@ -133,26 +133,118 @@ patch-bot my_app/main.py "pagination breaks when page number exceeds total pages
 
 ## Architecture
 
-```
-GitHub Repo ──→ ngrok ──→ Ingestion Gateway (Node.js, port 3000)
-                              │
-                              ▼
-                        Redis Queue (Celery)
-                              │
-                    ┌─────────┴─────────┐
-                    ▼                     ▼
-            Celery Worker           Celery Beat
-                    │                     │
-                    ▼                     ▼
-          FastAPI Brain (AI Engine)   Django Dashboard (UI)
-                    │                     │         │
-                    ▼                     ▼         ▼
-         Air-Gapped Sandbox         PostgreSQL  Billing Collector
-         (Docker, no network)       (ZDR audit)  (Stripe / Manual)
-                    │
-                    ▼
-         GitHub Contents API
-         (commit fix to PR branch)
+```mermaid
+graph TB
+    classDef external fill:#2da44e,color:#fff,stroke:#1a7f37
+    classDef cloud fill:#6366f1,color:#fff,stroke:#4f46e5
+    classDef gateway fill:#0ea5e9,color:#fff,stroke:#0284c7
+    classDef queue fill:#f59e0b,color:#fff,stroke:#d97706
+    classDef worker fill:#8b5cf6,color:#fff,stroke:#7c3aed
+    classDef brain fill:#ec4899,color:#fff,stroke:#db2777
+    classDef sandbox fill:#e17055,color:#fff,stroke:#d35400
+    classDef dashboard fill:#14b8a6,color:#fff,stroke:#0d9488
+    classDef db fill:#64748b,color:#fff,stroke:#475569
+    classDef billing fill:#f43f5e,color:#fff,stroke:#e11d48
+
+    subgraph External["☁️ External Services"]
+        GH["GitHub Repo<br/>Push / PR Events"]
+        OR["OpenRouter API<br/>GPT-4o-mini"]
+    end
+
+    subgraph Proxy["🚀 Reverse Proxy (Caddy) :80"]
+        CADDY["Caddy Proxy<br/>Routes: /webhooks/* → Gateway<br/>/* → Dashboard"]
+    end
+
+    subgraph Ingest["📡 Ingestion Gateway :3000"]
+        GW["Express.js Ingestion Service<br/>HMAC Signature Verify<br/>Branch Filtration Logic"]
+    end
+
+    subgraph Broker["📬 Message Broker"]
+        REDIS[(Redis Queue<br/>Celery Broker + Backend)]
+    end
+
+    subgraph Workers["⚙️ Task Workers"]
+        CELERY["Celery Worker<br/>Process Remediation Tasks"]
+        BEAT["Celery Beat<br/>Scheduled Cron Jobs"]
+    end
+
+    subgraph AIEngine["🧠 AI Engine :8010"]
+        BRAIN["FastAPI Core Brain<br/>Orchestration Layer"]
+        SCRUBBER["🔒 Secret Scrubber<br/>In-Memory Regex Redaction<br/>AWS Keys / GH Tokens / DB Creds"]
+        AI_INF["OpenRouter Inference<br/>Zero-Data-Retention<br/>Code Analysis + Patch Gen"]
+        HANDLER["GitHub API Handler<br/>Post PR Comments"]
+    end
+
+    subgraph Sandbox["🛡️ Air-Gapped Sandbox"]
+        SBX["Docker Sandbox Container<br/>No Network · 512MB RAM<br/>Read-Only Mount"]
+        PYT["Pytest / Jest Execution<br/>Test Suite Validation"]
+    end
+
+    subgraph Dashboard["📊 Django Dashboard :8000"]
+        DJANGO["Django 6 + Daphne ASGI<br/>Web UI / Admin"]
+        POLL["Live Status Polling API<br/>/api/v1/logs-stream/"]
+        UI["Execution Logs Cards<br/>Auto-Refresh Every 5s"]
+    end
+
+    subgraph Storage["💾 Database Layer"]
+        PG[("PostgreSQL<br/>Multi-Tenant")]
+        RLS["🔐 Row-Level Security<br/>Tenant Isolation at DB Engine"]
+        AUDIT["Audit Logs<br/>Zero Data Retention Policy"]
+    end
+
+    subgraph Billing["💰 Billing"]
+        BC["Billing Collector<br/>Usage Metering"]
+        STRIPE["Stripe / Manual<br/>Cost Forecasting"]
+    end
+
+    GH -- "Webhook: Push / Pull Request" --> NGROK[ngrok Tunnel]
+    NGROK --> CADDY
+    CADDY -- "/webhooks/github" --> GW
+    CADDY -- "/*" --> DJANGO
+
+    GW -- "HMAC Verify" --> HMAC_OK{Valid Signature?}
+    HMAC_OK -- "✅ Yes" --> FILTER{Default Branch?}
+    HMAC_OK -- "❌ No → 401" --> ERR[Rejected]
+    FILTER -- "✅ main" --> REDIS
+    FILTER -- "❌ feature branch" --> FILT_LOG["[Filtration] Skipped — not default branch"]
+
+    REDIS -- "Tasks" --> CELERY
+    REDIS -- "Schedule" --> BEAT
+
+    CELERY -- "POST /api/v1/verify-infrastructure" --> BRAIN
+    BRAIN --> SCRUBBER
+    SCRUBBER -- "Compliance Alert: Intercepted & Scrubbed" --> LOG_SCRUB[Logged]
+    SCRUBBER --> AI_INF
+    AI_INF --> OR
+    AI_INF --> BRAIN
+
+    BRAIN -- "Generate Patch" --> SBX
+    SBX --> PYT
+    PYT -- "exit_code=0 ✅" --> HANDLER
+    PYT -- "exit_code≠0 ❌" --> HANDLER
+    HANDLER -- "Post PR Comment" --> GH
+
+    DJANGO --> POLL
+    POLL --> UI
+    UI --> PG
+
+    BEAT --> BC
+    BC --> PG
+    BC --> STRIPE
+
+    PG --> RLS
+    PG --> AUDIT
+
+    class GH,OR external
+    class CADDY cloud
+    class GW,NGROK gateway
+    class REDIS queue
+    class CELERY,BEAT worker
+    class BRAIN,SCRUBBER,AI_INF,HANDLER brain
+    class SBX,PYT sandbox
+    class DJANGO,POLL,UI dashboard
+    class PG,RLS,AUDIT db
+    class BC,STRIPE billing
 ```
 
 ### Services

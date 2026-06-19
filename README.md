@@ -27,6 +27,7 @@ An autonomous, zero-data-retention AI DevOps pipeline that ingests GitHub webhoo
 
 ### Fast Path (3 commands)
 
+**macOS / Linux:**
 ```bash
 # 1. Auto-generate secrets, prompt for your OpenRouter key
 make setup
@@ -36,6 +37,18 @@ make sandbox
 
 # 3. Launch the full stack
 make up
+```
+
+**Windows (PowerShell):**
+```powershell
+# 1. Auto-generate secrets, prompt for your OpenRouter key
+.\setup.ps1 setup
+
+# 2. Pre-bake sandbox images (one-time)
+.\setup.ps1 sandbox
+
+# 3. Launch the full stack
+.\setup.ps1 up
 ```
 
 **Dashboard:** http://localhost:8000  ·  **Gateway:** http://localhost:3000

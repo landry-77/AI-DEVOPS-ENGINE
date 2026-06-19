@@ -5,7 +5,7 @@
 [![Node.js 18+](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org)
 [![Docker](https://img.shields.io/badge/Docker-required-2496ED.svg)](https://docker.com)
 
-An autonomous, zero-data-retention AI DevOps pipeline that ingests GitHub webhooks, constructs code patches via LLM, runs them in air-gapped Docker sandboxes (Pytest/Jest), and commits validated fixes directly to Pull Requests — all self-hosted with one `docker compose` command.
+An autonomous, zero-data-retention AI DevOps pipeline that ingests GitHub webhooks, constructs code patches via LLM, runs them in air-gapped Docker sandboxes (Pytest/Jest), and posts validated fixes as PR comments for your review — all self-hosted with one `docker compose` command.
 
 - **No SaaS fees** — you only pay the AI provider directly for tokens used
 - **Zero data retention** — code scrubbed in memory, destroyed after inference
@@ -14,103 +14,89 @@ An autonomous, zero-data-retention AI DevOps pipeline that ingests GitHub webhoo
 
 ---
 
-## Quickstart (from zero to running in ~10 minutes)
+## Quickstart (from zero to running in ~2 minutes)
 
 ### Prerequisites
 
 - Docker & Docker Compose (v2+)
-- Node.js 18+
-- Python 3.11+
-- [OpenRouter API key](https://openrouter.ai/keys) (free tier available)
-- [ngrok](https://ngrok.com/download) (free tier — exposes local webhook to GitHub)
+- Python 3.11+, Node.js 18+
+- [OpenRouter API key](https://openrouter.ai/keys) — free tier works
+- [ngrok](https://ngrok.com/download) — free tier, exposes your local webhook to GitHub
 
-### 1. Clone & Configure
+---
 
-```bash
-git clone https://github.com/your-username/ai-devops-engine.git
-cd ai-devops-engine
-cp .env.example .env
-```
-
-Create the `certs/` directory and place the `.pem` file there:
+### Fast Path (3 commands)
 
 ```bash
-mkdir -p certs
-# Move the downloaded .pem file into certs/
-mv ~/Downloads/your-app-private-key.pem certs/github_app.pem
+# 1. Auto-generate secrets, prompt for your OpenRouter key
+make setup
+
+# 2. Pre-bake sandbox images (one-time)
+make sandbox
+
+# 3. Launch the full stack
+make up
 ```
 
-Edit `.env` with your keys:
+**Dashboard:** http://localhost:8000  ·  **Gateway:** http://localhost:3000
+
+Then expose your webhook and open a PR:
+
+```bash
+# 4. Expose via ngrok (separate terminal)
+ngrok http http://localhost:3000
+
+# 5. Open any PR on your repo — the engine handles the rest
+```
+
+---
+
+### Detailed Setup (for first-time configuration)
+
+#### 1. Configure Environment
+
+`make setup` copies `.env.example → .env`, generates secure random values for `DJANGO_SECRET_KEY` and `FERNET_KEY`, then prompts for your OpenRouter key. After that, set two more values manually:
 
 | Variable | What to put | Required |
 |----------|-------------|----------|
-| `OPENROUTER_API_KEY` | Your OpenRouter API key | Yes |
-| `OPENROUTER_MODEL` | Model name (e.g. `openai/gpt-4o-mini`, `openrouter/qwen/qwen-2.5-coder-32b-instruct`) | No |
-| `GITHUB_APP_IDENTIFIER` | GitHub App ID number (from app settings page) | Yes |
+| `GITHUB_APP_IDENTIFIER` | GitHub App ID number | Yes |
 | `GITHUB_WEBHOOK_SECRET` | Webhook secret you set in GitHub App settings | Yes |
-| `DJANGO_SECRET_KEY` | Run `python -c "import secrets; print(secrets.token_urlsafe(50))"` | Yes |
-| `FERNET_KEY` | Run `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` | Yes |
-| `SLACK_ALERTS_WEBHOOK_URL` | Slack webhook URL for crash alerts | No |
-| `SLACK_ANALYSIS_WEBHOOK_URL` | Slack webhook URL for analysis results | No |
-| `PAYMENT_GATEWAY` | `stripe` or `manual` | No |
-| `AUDIT_RETENTION_DAYS` | How long to keep audit logs (default: 90) | No |
 
-> **Note:** `certs/github_app.pem` is the default path the stack expects. The `CERTS_PATH=./certs` in `.env` maps this directory into every container at `/app/certs`.
+Place the GitHub App `.pem` file at `certs/github_app.pem`.
 
-### 2. Create a GitHub App
+#### 2. Create a GitHub App
 
-1. Go to **GitHub Settings → Developer settings → GitHub Apps → New GitHub App**
-2. Set these values:
-   - **GitHub App name:** anything (e.g. `ai-devops-bot`)
+1. **GitHub Settings → Developer settings → GitHub Apps → New GitHub App**
+2. Settings:
+   - **GitHub App name:** `ai-devops-bot`
    - **Homepage URL:** `http://localhost:3000`
-   - **Webhook URL:** your ngrok URL from step 5
-   - **Webhook secret:** a random string you choose — put this in `.env` as `GITHUB_WEBHOOK_SECRET`
-   - **Repository permissions:** `Contents: Write`, `Pull requests: Read & Write`, `Checks: Write`, `Metadata: Read`
-   - **Subscribe to events:** `Pull request`, `Push`
-3. Click **Create GitHub App**
-4. On the app page: **Generate a private key** → download the `.pem` file → save it as `certs/github_app.pem` in your project root
-5. Copy the **App ID** number from the top of the page → put it in `.env` as `GITHUB_APP_IDENTIFIER`
-6. **Install the app** on a repo → click **Install App** in the sidebar → select a repo
+   - **Webhook URL:** `https://<your-ngrok-id>.ngrok-free.app/webhooks/github`
+   - **Webhook secret:** pick a random string → set as `GITHUB_WEBHOOK_SECRET` in `.env`
+   - **Permissions:** `Contents: Write`, `Pull requests: Read & Write`, `Checks: Write`, `Metadata: Read`
+   - **Events:** `Pull request`, `Push`
+3. **Generate a private key** → save as `certs/github_app.pem`
+4. Copy the **App ID** → set as `GITHUB_APP_IDENTIFIER` in `.env`
+5. **Install the app** on a repo
 
-### 3. Pre-Bake Sandbox Images
-
-```bash
-docker build -t local-pytest-sandbox -f sandbox-env/Dockerfile.python sandbox-env/
-docker build -t local-jest-sandbox -f sandbox-env/Dockerfile.javascript sandbox-env/
-```
-
-### 4. Launch the Stack
+#### 3. Pre-Bake & Launch
 
 ```bash
-docker compose -f docker-compose.local.yml up --build -d
+make sandbox   # build local-pytest-sandbox + local-jest-sandbox images
+make up        # docker compose up -d
 ```
 
-### 5. Expose Webhook Endpoint
+#### 4. Test with a Curl
 
 ```bash
-ngrok http http://localhost:3000
+make demo
 ```
 
-Copy the `https://<your-id>.ngrok-free.app` URL. Go back to your GitHub App settings and set the **Webhook URL** to `https://<your-id>.ngrok-free.app/webhooks/github`.
-
-### 6. Trigger a PR — Watch It Run
-
-Open any Pull Request on the repo you installed the app on. The engine will:
-1. Receive the webhook → parse the diff
-2. Send changed code to OpenRouter (with `data_collection: deny`)
-3. Generate a patch → mount it in an air-gapped sandbox
-4. Run `pytest` or `jest` — on pass, post the fix as a PR comment for review
-5. Log the result in the Django dashboard at `http://localhost:8000`
-
-You can also test with a manual curl (requires `openssl`):
+Or manually:
 
 ```bash
 WEBHOOK_SECRET="${GITHUB_WEBHOOK_SECRET?}"
-
 payload='{"action":"opened","pull_request":{"number":1},"repository":{"id":101,"full_name":"local-org/test-repo","clone_url":"local_vfs"},"installation":{"id":202}}'
-
 sig=$(printf '%s' "$payload" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | awk '{print $NF}')
-
 curl -X POST http://localhost:3000/webhooks/github \
   -H "Content-Type: application/json" \
   -H "x-github-event: pull_request" \
@@ -118,14 +104,21 @@ curl -X POST http://localhost:3000/webhooks/github \
   -d "$payload"
 ```
 
-### 7. (Optional) Use the CLI
+### How It Works
+
+When a PR is opened on your repo:
+1. GitHub sends a webhook → gateway verifies HMAC signature
+2. Gateway filters to default branch → enqueues task in Redis
+3. Celery worker picks up → AI engine scrubs secrets → calls OpenRouter
+4. Generated patch runs in air-gapped Docker sandbox (Pytest/Jest)
+5. On test pass: bot posts the fix as a PR comment for your review
+6. Dashboard logs every step at http://localhost:8000
+
+### Optional CLI
 
 ```bash
-# Install (one-time)
 chmod +x infra/patch-bot.sh
 alias patch-bot=./infra/patch-bot.sh
-
-# Fix a file
 patch-bot my_app/main.py "pagination breaks when page number exceeds total pages"
 ```
 

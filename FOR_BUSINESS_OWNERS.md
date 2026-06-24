@@ -69,7 +69,7 @@ This isn't just an internal tool — it's a **product you can launch in 48 hours
 **What you control as a service provider:**
 - **Pricing** — per seat, per repo, per analysis, or flat monthly. Set it in Stripe, the platform handles the rest.
 - **Billing** — Stripe subscriptions, manual invoicing, or your own gateway. The `billing-collector` tracks usage, forecasts spend, and alerts on anomalies.
-- **Tiers** — free tier (basic analysis), pro tier (air-gapped sandbox), enterprise (dedicated instance, custom SLAs). All configurable from the Django admin panel.
+- **Tiers** — free tier (basic analysis), pro tier (network-isolated sandbox), enterprise (dedicated instance, custom SLAs). All configurable from the Django admin panel.
 - **Multi-tenancy** — built-in PostgreSQL RLS. Every customer sees only their own data. You see everything.
 - **Onboarding** — customer installs your GitHub App on their repo, sets the webhook URL, done. No credential sharing, no VPN.
 

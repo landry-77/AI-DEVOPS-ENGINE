@@ -5,7 +5,7 @@
 [![Node.js 18+](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org)
 [![Docker](https://img.shields.io/badge/Docker-required-2496ED.svg)](https://docker.com)
 
-An autonomous, zero-data-retention AI DevOps pipeline that ingests GitHub webhooks, constructs code patches via LLM, runs them in air-gapped Docker sandboxes (Pytest/Jest), and posts validated fixes as PR comments for your review — all self-hosted with one `docker compose` command.
+An autonomous, zero-data-retention AI DevOps pipeline that ingests GitHub webhooks, constructs code patches via LLM, runs them in network-isolated Docker sandboxes (Pytest/Jest), and posts validated fixes as PR comments for your review — all self-hosted with one `docker compose` command.
 
 - **No SaaS fees** — you only pay the AI provider directly for tokens used
 - **Zero data retention** — code scrubbed in memory, destroyed after inference
@@ -123,7 +123,7 @@ When a PR is opened on your repo:
 1. GitHub sends a webhook → gateway verifies HMAC signature
 2. Gateway filters to default branch → enqueues task in Redis
 3. Celery worker picks up → AI engine scrubs secrets → calls OpenRouter
-4. Generated patch runs in air-gapped Docker sandbox (Pytest/Jest)
+4. Generated patch runs in network-isolated Docker sandbox (Pytest/Jest)
 5. On test pass: bot posts the fix as a PR comment for your review
 6. Dashboard logs every step at http://localhost:8000
 
@@ -260,7 +260,7 @@ graph TB
 | `ingestion-service` | Node.js + Express | GitHub webhook receiver, path filtering, task queuing |
 | `core-brain` | FastAPI + Celery | AI orchestration, secret scrubbing, Docker sandbox control |
 | `django-dashboard` | Django 6 + Daphne ASGI | Web UI, audit logs, multi-tenant admin, billing |
-| `sandbox-env` | Docker (air-gapped) | Pre-baked Pytest/Jest images, no network, 512MB RAM cap |
+| `sandbox-env` | Docker (network-isolated) | Pre-baked Pytest/Jest images, no network, 512MB RAM cap |
 | `billing-collector` | Python | Cost forecasting, usage metering, AWS/GCP poll |
 | `redis-broker` | Redis 7 | Celery message queue + result backend |
 

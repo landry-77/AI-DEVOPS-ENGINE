@@ -7,7 +7,7 @@ Provide a concise overview of the architectural modifications introduced by this
 To satisfy strict data privacy and isolation perimeters, confirm that your code aligns with the following design guidelines:
 - [ ] **Zero Data Retention:** This modification does not persist raw user source code or branch diff histories to local disks or databases.
 - [ ] **Secret Protection:** Changes do not expose or leak hardcoded credentials, tokens, or environment signatures.
-- [ ] **Sandbox Integrity:** Any adjustments to the execution layer preserve the air-gapped container rules (no internet access, enforced 512MB RAM / 2 CPU logical core limits).
+- [ ] **Sandbox Integrity:** Any adjustments to the execution layer preserve the network-isolated container rules (no internet access, enforced 512MB RAM / 2 CPU logical core limits).
 - [ ] **Tenant Isolation:** Database schema mutations or view layers strictly respect PostgreSQL Row-Level Security (RLS) tracking filters.
 
 ### Quality Assurance & Test Verification

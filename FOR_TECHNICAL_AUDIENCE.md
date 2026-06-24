@@ -32,7 +32,7 @@ This runs entirely on your machine. No cloud. No monthly bill. Connect any GitHu
 | Task Queue | Celery + Redis (Broker) | Async job distribution, beat scheduling | — |
 | AI Engine | FastAPI → OpenRouter | Code analysis, patch generation | Model choice via `.env` |
 | LLM Provider | OpenRouter (Enterprise ZDR) | GPT-4o-mini / Qwen 2.5 Coder 32B | Swap any OpenRouter model |
-| Sandbox | Docker SDK (air-gapped) | Isolated test execution | Pre-baked images (Python, JS) |
+| Sandbox | Docker SDK (network-isolated) | Isolated test execution | Pre-baked images (Python, JS) |
 | Dashboard | Django 6 + Daphne (ASGI) | UI, billing, audit logs, admin | — |
 | CLI | `infra/patch-bot.sh` (bash) | Terminal fix trigger, session token auth | `PATCHBOT_API_URL` in `.patchbot.env` |
 | Auth | Django auth.User + GitHub App JWT + API Keys | Session + CLI + machine-to-machine | Your GitHub App ID |
@@ -275,7 +275,7 @@ Bug filed ──→ AI analyzes in 20s ──→ Patch generated ──→ Sandb
 **What happens when a production bug is reported:**
 1. Developer files an issue (or the on-call engineer opens one)
 2. Issue webhook triggers the AI pipeline — no pager needed for routine fixes
-3. AI reads the code, generates a patch, runs it in the air-gapped sandbox
+3. AI reads the code, generates a patch, runs it in the network-isolated sandbox
 4. If tests pass, the fix is committed to a branch and a PR is opened
 5. Slack alert fires to `SLACK_ANALYSIS_WEBHOOK_URL` — "Bug #142 fixed, PR #203 ready for review"
 6. On-call engineer reviews (30 seconds) and merges

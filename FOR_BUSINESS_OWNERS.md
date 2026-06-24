@@ -89,7 +89,7 @@ Your only cost is the VPS ($20–100/mo on AWS Lightsail or DigitalOcean) plus O
 |------------|-----------------|----------------|-----------|-------------------|
 | Self-hosted | **Yes** — your VPS, your data | No — cloud only | No — cloud only | Partial — needs GitLab Runner |
 | Zero data retention | **Yes** — code scrubbed in memory | No — Microsoft trains on data | No | No |
-| Air-gapped sandbox | **Yes** — no network, 512MB RAM cap | No | No | No |
+| Network-isolated sandbox | **Yes** — no network, 512MB RAM cap | No | No | No |
 | Automated PR fixing | **Yes** — commits fix to branch | Suggestions only | PR comments only | Pipeline passes/fails |
 | Your billing, your pricing | **Yes** — Stripe/manual/custom | Fixed $19/user/mo | Custom quote | GitLab tier pricing |
 | Slack alerts (dual-channel) | **Yes** — analysis + crash alerts | No | No | No |

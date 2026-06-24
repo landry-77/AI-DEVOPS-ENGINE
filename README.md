@@ -9,7 +9,7 @@ An autonomous, zero-data-retention AI DevOps pipeline that ingests GitHub webhoo
 
 - **No SaaS fees** — you only pay the AI provider directly for tokens used
 - **Zero data retention** — code scrubbed in memory, destroyed after inference
-- **Air-gapped sandbox** — patches run in network-isolated, resource-throttled containers
+- **Network-isolated sandbox** — patches run in network-isolated, resource-throttled containers
 - **Multi-tenant** — PostgreSQL Row-Level Security isolates tenants at the database engine level
 
 ---
@@ -181,7 +181,7 @@ graph TB
         HANDLER["GitHub API Handler<br/>Post PR Comments"]
     end
 
-    subgraph Sandbox["🛡️ Air-Gapped Sandbox"]
+    subgraph Sandbox["🛡️ Network-Isolated Sandbox"]
         SBX["Docker Sandbox Container<br/>No Network · 512MB RAM<br/>Read-Only Mount"]
         PYT["Pytest / Jest Execution<br/>Test Suite Validation"]
     end
@@ -273,6 +273,6 @@ graph TB
 | Code storage | **Zero persistence** — PostgreSQL stores only operational metadata, never source code |
 | LLM privacy | **`data_collection: deny`** on every OpenRouter request — legally blocks training on your code |
 | Secret scrubbing | **In-memory regex** — AWS keys, GH tokens, DB credentials masked before transit |
-| Patch execution | **Air-gapped Docker** — no network access, 512MB RAM / 2 CPU hard limit, no host FS mount |
+| Patch execution | **Network-isolated Docker** — no network access, 512MB RAM / 2 CPU hard limit, no host FS mount |
 | Tenant isolation | **PostgreSQL RLS** — database-enforced row separation, bypasses Django `.filter()` |
 | Container leaks | **Background cron** — auto-prunes orphaned sandbox containers on execution freeze |

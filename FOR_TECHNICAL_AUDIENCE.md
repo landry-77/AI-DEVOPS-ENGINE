@@ -14,7 +14,7 @@ Your GitHub Repo ──→ ngrok ──→ Ingestion Gateway (Node.js, port 3000
           FastAPI Brain (AI Engine)     Django Dashboard (UI)
                     │                      │          │
                     ▼                      ▼          ▼
-         Air-Gapped Sandbox           PostgreSQL   Billing Collector
+         Network-Isolated Sandbox           PostgreSQL   Billing Collector
          (Docker, no network)         (ZDR audit)  (pluggable — Stripe,
                     │                                manual, or your own)
                     ▼
@@ -95,7 +95,7 @@ Inference payload:
 - Secret scrubbing via `scrubber.py` removes PATs (`ghp_*`, `github_pat_*`), API keys, tokens, and base64-encoded credentials before AI analysis — regex-based sanitization runs on the code string in memory
 - Retention configured via `AUDIT_RETENTION_DAYS` in `.env` — you decide compliance window
 
-### 2. Air-Gapped Sandbox Execution
+### 2. Network-Isolated Sandbox Execution
 
 ```python
 container = docker_client.containers.create(

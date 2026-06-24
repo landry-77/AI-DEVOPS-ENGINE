@@ -13,7 +13,7 @@ An **open-source AI agent** that lives inside your GitHub workflow, watches your
 1. **You write code** and open a Pull Request on GitHub
 2. **The AI reads your code**, spots mistakes, and generates a fix
 3. **It runs the fix in a locked-down sandbox** — tests it automatically, no risk to your system
-4. **If the fix passes**, it commits the correction directly to your branch
+4. **If the fix passes**, it posts the correction as a PR comment for your review
 5. **You get Slack alerts** — analysis results go to one channel, crash alerts go to another
 6. **Use the CLI** — `curl` the script once, then `patch-bot myfile.py "describe the bug"` from any terminal
 7. **A dashboard** shows every bug, fix, deployment, team activity, and cloud cost breakdown
@@ -90,7 +90,7 @@ Your only cost is the VPS ($20–100/mo on AWS Lightsail or DigitalOcean) plus O
 | Self-hosted | **Yes** — your VPS, your data | No — cloud only | No — cloud only | Partial — needs GitLab Runner |
 | Zero data retention | **Yes** — code scrubbed in memory | No — Microsoft trains on data | No | No |
 | Network-isolated sandbox | **Yes** — no network, 512MB RAM cap | No | No | No |
-| Automated PR fixing | **Yes** — commits fix to branch | Suggestions only | PR comments only | Pipeline passes/fails |
+| Automated PR fixing | **Yes** — posts fix as PR comment | Suggestions only | PR comments only | Pipeline passes/fails |
 | Your billing, your pricing | **Yes** — Stripe/manual/custom | Fixed $19/user/mo | Custom quote | GitLab tier pricing |
 | Slack alerts (dual-channel) | **Yes** — analysis + crash alerts | No | No | No |
 | Multi-tenant out of box | **Yes** — PostgreSQL RLS | No | No | Org-level only |

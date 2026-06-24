@@ -19,7 +19,7 @@ Your GitHub Repo ──→ ngrok ──→ Ingestion Gateway (Node.js, port 3000
                     │                                manual, or your own)
                     ▼
          GitHub Contents API
-         (direct commit to PR branch)
+         (posts fix as PR comment)
 ```
 
 This runs entirely on your machine. No cloud. No monthly bill. Connect any GitHub repo.
@@ -115,19 +115,27 @@ container = docker_client.containers.create(
 ### 3. PR Automation
 
 ```
-GitHub PR (opened) ──→ Ingestion ──→ AI analysis ──→ Auto-commit fix
+GitHub PR (opened) ──→ Ingestion ──→ AI analysis ──→ Sandbox test
                                                         │
-                                                        ▼
+                                                     Pass?
+                                                    /    \
+                                                  Yes    No
+                                                   │      │
+                                                   ▼      ▼
+                                          Post fix as   Log failure
+                                          PR comment    to dashboard
+                                                   │      │
+                                                   ▼      ▼
                                               Slack notification
-                                                        │
-                                                        ▼
-                                              Dashboard entry created
+                                                   │
+                                                   ▼
+                                          Dashboard entry created
 ```
 
 - Only `opened` events trigger analysis (no `synchronize` — prevents infinite re-trigger loops)
-- Auto-commit via **GitHub Contents API** (`PUT /repos/{owner}/{repo}/contents/{path}`) — replaces entire file, no append
+- Bot posts the fix as a **PR comment** — you review and apply manually
+- No auto-commit — enterprise safety requirement
 - ` ```suggestion` blocks **not used** — they can only replace single lines, not entire files
-- Deployment pipeline on push to default branch (`[skip deploy]` escape hatch available)
 - Works with **any GitHub repo** you configure — yours, your client's, your org's
 - On push to default branch, deployment pipeline auto-triggers (`[skip deploy]` in commit message to skip)
 - Supports 4 strategies: Docker, Kubernetes, Serverless, Custom Script
@@ -259,24 +267,24 @@ Two independent Slack webhooks:
 | Webhook | Sent by | When |
 |---------|---------|------|
 | `SLACK_ALERTS_WEBHOOK_URL` | celery-worker | Task failures, system crashes |
-| `SLACK_ANALYSIS_WEBHOOK_URL` | fastapi-brain | AI analysis completed, fix committed |
+| `SLACK_ANALYSIS_WEBHOOK_URL` | fastapi-brain | AI analysis completed, fix posted as comment |
 
 ### 8. Incident Response & MTTR Reduction
 
 US engineering leaders measure everything in **MTTR** (Mean Time to Resolve). This system directly attacks that metric:
 
 ```
-Bug filed ──→ AI analyzes in 20s ──→ Patch generated ──→ Sandbox tested ──→ PR committed
+Bug filed ──→ AI analyzes in 20s ──→ Patch generated ──→ Sandbox tested ──→ PR comment posted
         ▲                                                                           │
         │                                                                           ▼
-        └────────────────────── Slack alert (analysis + fix committed) ──────────────┘
+        └────────────────────── Slack alert (analysis + fix posted) ──────────────┘
 ```
 
 **What happens when a production bug is reported:**
 1. Developer files an issue (or the on-call engineer opens one)
 2. Issue webhook triggers the AI pipeline — no pager needed for routine fixes
 3. AI reads the code, generates a patch, runs it in the network-isolated sandbox
-4. If tests pass, the fix is committed to a branch and a PR is opened
+4. If tests pass, the fix is posted as a PR comment for review
 5. Slack alert fires to `SLACK_ANALYSIS_WEBHOOK_URL` — "Bug #142 fixed, PR #203 ready for review"
 6. On-call engineer reviews (30 seconds) and merges
 
@@ -284,7 +292,7 @@ Bug filed ──→ AI analyzes in 20s ──→ Patch generated ──→ Sandb
 
 | Scenario | Without system | With system | Savings |
 |----------|---------------|-------------|---------|
-| Runtime bug (null pointer, off-by-one) | 2–4 hours (triage + fix + test + PR) | 20–60 seconds (AI generates + tests + commits) | **99%+** |
+| Runtime bug (null pointer, off-by-one) | 2–4 hours (triage + fix + test + PR) | 20–60 seconds (AI generates + tests + posts comment) | **99%+** |
 | Test failure after merge | 1–2 hours (revert + fix + re-deploy) | Prevented before merge | **100%** |
 | Dependency bump / deprecation | 30 min (manual search + replace) | `patch-bot` CLI, 10 seconds | **98%** |
 | On-call after-hours incident | Pager wakes engineer at 3 AM | AI fixes before pager fires | **100% for auto-fixable** |
